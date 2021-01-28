@@ -1,0 +1,7 @@
+I take some notes here, it may not be very interresting:
+
+Indi tutorials here: https://indilib.org/developers/dev-howtos/184-building-indi-tutorials.html
+
+sudo apt-get install cdbs cmake git libcfitsio-dev libnova-dev libusb-1.0-0-dev libjpeg-dev libusb-dev libftdi-dev fxload libkrb5-dev libcurl4-gnutls-dev libraw-dev libgphoto2-dev libgsl0-dev dkms libboost-regex-dev libgps-dev libdc1394-22-dev
+
+sudo apt install zlib1g-dev libfftw3-dev
