@@ -13,10 +13,19 @@ void setup() {
 }
 
 void loop() {
-    eq_gotospeed(10000);
-    delay(1000);
-    eq_gotospeed(5000);
-    delay(1000);
-    eq_gotospeed(10000);
-    delay(1000);
+    Serial.println("Speeding up");
+    eq_gotospeed(10000); // 15000 ? max full step ?
+    for (int i = 0; i < 20; i++) {
+        delay(1000);
+        Serial.print("dec ");
+        Serial.println(newPeriod);
+    }
+    Serial.println("Stopping");
+    eq_stop_async();
+    while (!eq_stop_done()) {
+        delay(1000);
+        Serial.print("inc ");
+        Serial.println(newPeriod);
+    }
+    delay(2000);
 }
