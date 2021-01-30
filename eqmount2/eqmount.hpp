@@ -16,12 +16,15 @@ unsigned long newPeriod = MAX_PERIOD_HZ; // period will be picked up next step
 
 bool timer_running = false;
 
+unsigned long steps = 0;
+
 unsigned long targetPeriod = MAX_PERIOD_HZ; // speed the user wants
 
 // set newPeriod according to targetPeriod
 inline void _update_newPeriod() {
     // Proportional
     // todo: limit acceleration
+    steps ++;
     float remaining = ((float)newPeriod - (float)targetPeriod)*(float)newPeriod*(float)newPeriod; // > 0 when acc.
     newPeriod = (unsigned long)((float)newPeriod - remaining*STEPPER_PROP_ACCELL);
 }

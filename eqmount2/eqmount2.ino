@@ -7,19 +7,22 @@ void setup() {
     Serial.begin(9600);
     while (!Serial);
 
-    Serial.println("Eqmount first test");
+    Serial.println("Eqmount 17th test");
 
     eq_setup();
 }
 
 void loop() {
     Serial.println("Speeding up");
-    eq_gotospeed(10000); // 15000 ? max full step ?
-    for (int i = 0; i < 20; i++) {
+    eq_gotospeed(7000);
+    // 1:3.7 4300 Full (4300 ustepping)
+    // 1:139 5000 Full (7000 usteps)
+    while (steps < 200*139) {
         delay(1000);
         Serial.print("dec ");
         Serial.println(newPeriod);
     }
+    steps = 0;
     Serial.println("Stopping");
     eq_stop_async();
     while (!eq_stop_done()) {
