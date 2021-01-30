@@ -73,6 +73,13 @@ void eq_gotospeed(unsigned long period) {
     }
 }
 
+inline void eq_gotospeed_tr_per_min(float tr_per_min) {
+    float us_per_step = 1000000.0/(200.0*139.0*tr_per_min/60.0);
+    // 1tr per 10min = 21'583 us_per_step = 674 us_per_ustep
+    // 1tr per 23 h 56 min 4,09 s = 3'099'428 us_per_step = 96'857 us_per_ustep 
+    eq_gotospeed((unsigned long)us_per_step);
+}
+
 void eq_stop_sync() {
     targetPeriod = STEPPER_PERIOD_MIN;
     while(newPeriod < STEPPER_PERIOD_MIN)

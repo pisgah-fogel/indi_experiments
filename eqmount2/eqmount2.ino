@@ -15,8 +15,8 @@ void setup() {
 void loop() {
     Serial.println("Speeding up");
     eq_gotospeed(7000);
-    // 1:3.7 4300 Full (4300 ustepping)
-    // 1:139 5000 Full (7000 usteps)
+    // 1:3.7 4300 Full
+    // 1:139 5000 Full
     while (steps < 200*139) {
         delay(1000);
         Serial.print("dec ");
