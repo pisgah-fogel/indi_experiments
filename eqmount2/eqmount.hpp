@@ -1,7 +1,17 @@
 #ifndef EQMOUNT_HPP
 #define EQMOUNT_HPP
 
-#include <CurieTimerOne.h>
+#if defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+ // TODO: add all cards supported by TimerOne
+ #include <TimerOne.h>
+ #define TIMERONE
+ #define MAX_PERIOD_HZ 1000000
+#else
+ #include <CurieTimerOne.h>
+ #warning “If your card is not an Arduino geniuno 101 it's not supported”
+ #define CURIE
+#endif
+
 
 #define STEPPER_PIN_STEP 3
 #define STEPPER_PIN_DIR 5
@@ -11,7 +21,9 @@
 #define STEPPER_PERIOD_MIN 100000 // experimental value
 #define STEPPER_PROP_ACCELL 0.00000000001 // experimental value
 
-CurieTimer timer = CurieTimer();
+#ifdef CURIE
+    CurieTimer timer = CurieTimer();
+#endif
 unsigned long newPeriod = MAX_PERIOD_HZ; // period will be picked up next step
 
 bool timer_running = false;
@@ -36,7 +48,13 @@ void _callback_timer() {
     // delayMicroseconds(1) = 3.66us
     // delayMicroseconds(10) = 12.4us
     digitalWrite(STEPPER_PIN_STEP, LOW);
+
+    #ifdef CURIE
     CurieTimerOne.setPeriod(newPeriod);
+    #endif
+    #ifdef TIMERONE
+    Timer1.setPeriod(newPeriod);
+    #endif
     _update_newPeriod();
 }
 
@@ -45,8 +63,15 @@ void eq_setup() {
     pinMode(STEPPER_PIN_STEP, OUTPUT);
     digitalWrite(STEPPER_PIN_STEP, LOW);
 
-    CurieTimerOne.start(MAX_PERIOD_HZ, &_callback_timer);
-    CurieTimerOne.stop();
+    #ifdef CURIE
+        CurieTimerOne.start(MAX_PERIOD_HZ, &_callback_timer);
+        CurieTimerOne.stop();
+    #endif
+    #ifdef TIMERONE
+        Timer1.initialize(MAX_PERIOD_HZ); // microsecond
+        // Timer1.attachInterrupt(_callback_timer); // Will be attached later
+        // TODO: noInterrupts(); interrupts();
+    #endif
     timer_running = false;
 
     pinMode(STEPPER_PIN_DIR, OUTPUT);
@@ -68,8 +93,18 @@ void eq_gotospeed(unsigned long period) {
         // setPeriod(1000): 1.002ms
         // Start from 0 rpm: choose a big enough period
         newPeriod = STEPPER_PERIOD_MIN;
-        CurieTimerOne.setPeriod(newPeriod);
-        CurieTimerOne.start(); 
+        
+
+        #ifdef CURIE
+            CurieTimerOne.setPeriod(newPeriod);
+            CurieTimerOne.start();
+        #endif
+
+        #ifdef TIMERONE
+            //Timer1.setPeriod(newPeriod);
+            //Timer1.detachInterrupt(); // stop
+            Timer1.attachInterrupt(_callback_timer, newPeriod);
+        #endif
     }
 }
 
@@ -87,7 +122,13 @@ void eq_stop_sync() {
     digitalWrite(STEPPER_PIN_DISABLE, HIGH); // Power off
     timer_running = false;
     newPeriod = MAX_PERIOD_HZ;
-    CurieTimerOne.stop();
+
+    #ifdef CURIE
+        CurieTimerOne.stop();
+    #endif
+    #ifdef TIMERONE
+        Timer1.detachInterrupt();
+    #endif
 }
 
 void eq_stop_async() {
@@ -101,7 +142,12 @@ bool eq_stop_done() {
         digitalWrite(STEPPER_PIN_DISABLE, HIGH); // Power off
         timer_running = false;
         newPeriod = MAX_PERIOD_HZ;
-        CurieTimerOne.stop();
+        #ifdef CURIE
+            CurieTimerOne.stop();
+        #endif
+        #ifdef TIMERONE
+            Timer1.detachInterrupt();
+        #endif
         return true;
     }
     return false;
