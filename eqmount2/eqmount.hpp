@@ -8,7 +8,7 @@
  #define MAX_PERIOD_HZ 1000000
 #else
  #include <CurieTimerOne.h>
- #warning “If your card is not an Arduino geniuno 101 it's not supported”
+ #warning “If your card is not an Arduino geniuno 101 it is not supported”
  #define CURIE
 #endif
 
