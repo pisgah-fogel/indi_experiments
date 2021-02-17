@@ -183,10 +183,10 @@ void loop() {
 
 
         display.printFixed(0,  0, "1 FORWARD    ", STYLE_NORMAL);
-        display.printFixed(8*8,  3*8, "/10", STYLE_NORMAL);
+        display.printFixed(8*8,  3*8, "/100", STYLE_NORMAL);
         eq_gotospeed(default_speed);
-        encoderCounter = 10;
-        display.printFixed(0,  3*8, "10   ", STYLE_NORMAL);
+        encoderCounter = 100;
+        display.printFixed(0,  3*8, "100  ", STYLE_NORMAL);
         
         // Wait for a certain number of steps
         // while(steps < 200*139);
@@ -217,11 +217,11 @@ void loop() {
             }
 
             if (encoderCounter >= 0) {
-                dir_counterclockwise();
-                eq_gotospeed(default_speed/(encoderCounter/10.0));
-            } else {
                 dir_clockwise();
-                eq_gotospeed(default_speed/((-1*encoderCounter)/10.0));
+                eq_gotospeed(default_speed/(encoderCounter/100.0));
+            } else {
+                dir_counterclockwise();
+                eq_gotospeed(default_speed/((-1*encoderCounter)/100.0));
             }
 
             // Display
