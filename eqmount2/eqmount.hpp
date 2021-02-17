@@ -32,11 +32,16 @@ unsigned long steps = 0;
 
 unsigned long targetPeriod = MAX_PERIOD_HZ; // speed the user wants
 
+unsigned char direction = 0; // 0 = clockwise
+
 // set newPeriod according to targetPeriod
 inline void _update_newPeriod() {
     // Proportional
     // todo: limit acceleration
-    steps ++;
+    if (direction == 0)
+        steps ++;
+    else
+        steps --;
     float remaining = ((float)newPeriod - (float)targetPeriod)*(float)newPeriod*(float)newPeriod; // > 0 when acc.
     newPeriod = (unsigned long)((float)newPeriod - remaining*STEPPER_PROP_ACCELL);
 }
@@ -56,6 +61,16 @@ void _callback_timer() {
     Timer1.setPeriod(newPeriod);
     #endif
     _update_newPeriod();
+}
+
+void dir_clockwise() {
+    digitalWrite(STEPPER_PIN_DIR, HIGH); // clockwise
+    direction = 0;
+}
+
+void dir_counterclockwise() {
+    digitalWrite(STEPPER_PIN_DIR, LOW); // counterclockwise
+    direction = 1;
 }
 
 void eq_setup() {
@@ -108,12 +123,9 @@ void eq_gotospeed(unsigned long period) {
     }
 }
 
-inline void eq_gotospeed_tr_per_min(float tr_per_min) {
-    float us_per_step = 1000000.0/(200.0*139.0*tr_per_min/60.0);
-    // 1tr per 10min = 21'583 us_per_step = 674 us_per_ustep
-    // 1tr per 23 h 56 min 4,09 s = 3'099'428 us_per_step = 96'857 us_per_ustep 
-    eq_gotospeed((unsigned long)us_per_step);
-}
+// 1tr per 10min = 21'583 us_per_step = 674 us_per_ustep
+// 1tr per 23 h 56 min 4,09 s = 3'099'428 us_per_step = 96'857 us_per_ustep 
+#define TR_MIN_TO_DELAY(X) 1000000.0/(200.0*139.0*X/60.0)
 
 void eq_stop_sync() {
     targetPeriod = STEPPER_PERIOD_MIN;
@@ -138,7 +150,7 @@ void eq_stop_async() {
 bool eq_stop_done() {
     if (!timer_running)
         return true;
-    if (newPeriod >= STEPPER_PERIOD_MIN*0.9) {
+    if (newPeriod >= STEPPER_PERIOD_MIN*0.7) {
         digitalWrite(STEPPER_PIN_DISABLE, HIGH); // Power off
         timer_running = false;
         newPeriod = MAX_PERIOD_HZ;

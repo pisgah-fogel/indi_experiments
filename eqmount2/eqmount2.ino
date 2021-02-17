@@ -4,14 +4,16 @@
 
 #include "eqmount.hpp"
 
-#define mode0pin 8
+#define mode0pin 10
 #define mode1pin 9
-#define mode2pin 10
+#define mode2pin 8
 
 #define encoderclkpin 12 // KY-040 encoder
 #define encoredtpin 11 // KY-040 encoder
 
 DisplaySSD1306_128x32_I2C display(-1, {-1, 0x3C, 24 /*clk*/, 23/*tx*/, 0});
+
+const unsigned long default_speed = TR_MIN_TO_DELAY(0.1);
 
 const PROGMEM uint8_t myfont []=
 {
@@ -118,6 +120,7 @@ const PROGMEM uint8_t myfont []=
 
 unsigned char encoderclk_last;
 int encoderCounter = 0;
+unsigned char mode = 0;
 
 void setup() {
     Serial.begin(9600);
@@ -140,62 +143,87 @@ void setup() {
     display.begin();
     display.setFixedFont( myfont );
     display.fill(0x0);
-    display.printFixed(0,  0, "Interractive mode", STYLE_NORMAL);
-    display.printFixed(8*8,  3*8, "/10", STYLE_NORMAL);
-    display.printFixed(0,  3*8, "0", STYLE_NORMAL);
+    display.printFixed(0,  0, "0 STOP", STYLE_NORMAL);
+
+    mode = 0;
 }
 
 char buffer[6];
 void loop() {
-    // Encoder
-    unsigned int encoderclk = digitalRead(encoderclkpin);
-    unsigned int encoderdt = digitalRead(encoredtpin);
-    if (encoderclk_last == HIGH && encoderclk == LOW) {
-        if (encoderdt == HIGH) {
-            encoderCounter++;
-            Serial.print(encoderCounter);
-            Serial.println(" Clockwise");
-        } else {
-            encoderCounter--;
-            Serial.print(encoderCounter);
-            Serial.println(" Counterclockwise");
-        }
-        // Display
-        display.printFixed(0,  3*8, "     ", STYLE_NORMAL);
-        itoa(encoderCounter, buffer, 10);
-        display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
+    if (!digitalRead(mode0pin)) // It is a pullup
+    {
+        mode = 0;
+        display.printFixed(0,  0, "0 STOP      ", STYLE_NORMAL);
+        display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
+        eq_stop_async();
     }
-    encoderclk_last = encoderclk;
+    if (!digitalRead(mode1pin)) // It is a pullup
+    {
+        mode = 1;
+        // Wait for motor to stop if it's running
+        display.printFixed(0,  0, "1 STOPPING...", STYLE_NORMAL);        display.printFixed(0,  3*8, "0", STYLE_NORMAL);
+        display.printFixed(0,  3*8, "         ", STYLE_NORMAL);
+        display.printFixed(8*8,  3*8, "   ", STYLE_NORMAL);
+        eq_stop_async();
+        while (!eq_stop_done()) {
+            ltoa(newPeriod, buffer, 10);
+            display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
+            delay(1000);
+        }
+        delay(1000);
+        display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
+
+
+        display.printFixed(0,  0, "1 FORWARD    ", STYLE_NORMAL);
+        display.printFixed(8*8,  3*8, "/10", STYLE_NORMAL);
+        eq_gotospeed(default_speed);
+        encoderCounter = 10;
+        display.printFixed(0,  3*8, "10   ", STYLE_NORMAL);
+        
+        // Wait for a certain number of steps
+        // while(steps < 200*139);
+        // 1:3.7 4300 Full
+        // 1:139 5000 Full
+    }
+    if (!digitalRead(mode2pin)) // It is a pullup
+    {
+        mode = 2;
+        display.printFixed(0,  0, "2 UNDEFINED ", STYLE_NORMAL);
+        display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
+    }
+
+    if (mode == 1) {
+        // Encoder
+        unsigned int encoderclk = digitalRead(encoderclkpin);
+        unsigned int encoderdt = digitalRead(encoredtpin);
+        if (encoderclk_last == HIGH && encoderclk == LOW) {
+            if (encoderdt == HIGH) {
+                encoderCounter++;
+                //Serial.print(encoderCounter);
+                //Serial.println(" Clockwise");
+            } else {
+                encoderCounter--;
+                //Serial.print(encoderCounter);
+                //Serial.println(" Counterclockwise");
+            }
+
+            if (encoderCounter >= 0) {
+                dir_clockwise();
+                eq_gotospeed(default_speed/(encoderCounter/10.0));
+            } else {
+                dir_counterclockwise();
+                eq_gotospeed(default_speed/((-1*encoderCounter)/10.0));
+            }
+
+            // Display
+            display.printFixed(0,  3*8, "     ", STYLE_NORMAL);
+            itoa(encoderCounter, buffer, 10);
+            display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
+        }
+        encoderclk_last = encoderclk;
+    }
 
     // TODO: GPS (get clock and position)
 
     // TODO: measure motor consumption with shunt resistor + AOP (x10, 1V = 1A)
-
-    // Stepper motor
-    /*
-    Serial.println("Speeding up");
-    eq_gotospeed(7000);
-    // 1:3.7 4300 Full
-    // 1:139 5000 Full
-    while (steps < 200*139) {
-        delay(500);
-        if (!digitalRead(mode0pin)) // It is a pullup
-        Serial.println("Mode 0");
-        if (!digitalRead(mode1pin)) // It is a pullup
-        Serial.println("Mode 1");
-        if (!digitalRead(mode2pin)) // It is a pullup
-        Serial.println("Mode 2");
-        Serial.print("dec ");
-        Serial.println(newPeriod);
-    }
-    steps = 0;
-    Serial.println("Stopping");
-    eq_stop_async();
-    while (!eq_stop_done()) {
-        delay(1000);
-        Serial.print("inc ");
-        Serial.println(newPeriod);
-    }
-    delay(2000);
-    */
 }
