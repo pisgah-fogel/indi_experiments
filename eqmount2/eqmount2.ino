@@ -155,7 +155,15 @@ void loop() {
         mode = 0;
         display.printFixed(0,  0, "0 STOP      ", STYLE_NORMAL);
         display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
+        display.printFixed(8*8,  3*8, "   ", STYLE_NORMAL);
         eq_stop_async();
+        while (!eq_stop_done()) {
+            ltoa(newPeriod, buffer, 10);
+            display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
+            delay(1000);
+        }
+        delay(1000);
+        display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
     }
     if (!digitalRead(mode1pin)) // It is a pullup
     {
@@ -190,6 +198,7 @@ void loop() {
         mode = 2;
         display.printFixed(0,  0, "2 UNDEFINED ", STYLE_NORMAL);
         display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
+        display.printFixed(8*8,  3*8, "   ", STYLE_NORMAL);
     }
 
     if (mode == 1) {

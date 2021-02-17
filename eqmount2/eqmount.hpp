@@ -96,8 +96,8 @@ void eq_setup() {
     digitalWrite(STEPPER_PIN_DISABLE, HIGH); // Do not power motor
 
     pinMode(STEPPER_PIN_MICRO, OUTPUT);
-    //digitalWrite(STEPPER_PIN_MICRO, HIGH); // x32 micro steps
-    digitalWrite(STEPPER_PIN_MICRO, LOW); // Full steps
+    digitalWrite(STEPPER_PIN_MICRO, HIGH); // x32 micro steps
+    //digitalWrite(STEPPER_PIN_MICRO, LOW); // Full steps
 }
 
 void eq_gotospeed(unsigned long period) {
