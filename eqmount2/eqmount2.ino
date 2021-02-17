@@ -140,7 +140,9 @@ void setup() {
     display.begin();
     display.setFixedFont( myfont );
     display.fill(0x0);
-    display.printFixed(0,  8, "Interractive mode", STYLE_NORMAL);
+    display.printFixed(0,  0, "Interractive mode", STYLE_NORMAL);
+    display.printFixed(8*8,  3*8, "/10", STYLE_NORMAL);
+    display.printFixed(0,  3*8, "0", STYLE_NORMAL);
 }
 
 char buffer[6];
