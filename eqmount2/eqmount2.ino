@@ -217,10 +217,10 @@ void loop() {
             }
 
             if (encoderCounter >= 0) {
-                dir_clockwise();
+                dir_counterclockwise();
                 eq_gotospeed(default_speed/(encoderCounter/10.0));
             } else {
-                dir_counterclockwise();
+                dir_clockwise();
                 eq_gotospeed(default_speed/((-1*encoderCounter)/10.0));
             }
 
