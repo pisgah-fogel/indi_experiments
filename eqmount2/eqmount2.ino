@@ -1,20 +1,34 @@
-// Program targetting Arduino Genuino 101
-// x86 - Quark SE 32MHz
+// Program targetting
+// Arduino Genuino 101 / x86 - Quark SE 32MHz
+// Arduino Nano V3 / Atmega168
+
 #include "lcdgfx.h"
 
 #include "eqmount.hpp"
 
-#define mode0pin 10
-#define mode1pin 9
-#define mode2pin 8
+#define BUTTON_PIN_0 10
+#define BUTTON_PIN_1 9
+#define BUTTON_PIN_2 8
 
-#define encoderclkpin 12 // KY-040 encoder
-#define encoredtpin 11 // KY-040 encoder
+#define STEPPER_PIN_STEP 3
+#define STEPPER_PIN_DIR 5
+#define STEPPER_PIN_DISABLE 6
+#define STEPPER_PIN_MICRO 4
 
-DisplaySSD1306_128x32_I2C display(-1, {-1, 0x3C, 24 /*clk*/, 23/*tx*/, 0});
+#define ENCODER_PIN_CLK 12 // KY-040 encoder
+#define ENCODER_PIN_DT 11 // KY-040 encoder
 
-const unsigned long default_speed = TR_MIN_TO_DELAY(0.1);
+#ifndef __AVR_ATmega168__
+#warning "OLED pinout may not be correct on your board (23(I2C TX) 24(I2C CLK))"
+#endif
+#define OLED_PIN_CLK 24 // Pin for I2C communication (you can write/use software I2C if you want)
+#define OLED_PIN_TX 23 // cf OLED_PIN_CLK
 
+DisplaySSD1306_128x32_I2C display(-1, {-1, 0x3C, OLED_PIN_CLK, OLED_PIN_TX, 0}); // No reset required for my board
+
+const unsigned long default_speed = TR_MIN_TO_DELAY(0.1); // My telescope requires 1 turn per 10min
+
+// Font used for the OLED display
 const PROGMEM uint8_t myfont []=
 {
   0x00, 0x06, 0x08, 0x20,
@@ -120,7 +134,7 @@ const PROGMEM uint8_t myfont []=
 
 unsigned char encoderclk_last;
 int encoderCounter = 0;
-unsigned char mode = 0;
+unsigned char mode = 0; // State machine's state
 
 void setup() {
     Serial.begin(9600);
@@ -130,15 +144,15 @@ void setup() {
 
     eq_setup();
 
-    pinMode(mode0pin, INPUT_PULLUP);
-    pinMode(mode1pin, INPUT_PULLUP);
-    pinMode(mode2pin, INPUT_PULLUP);
-    // digitalRead(mode0pin)
+    pinMode(BUTTON_PIN_0, INPUT_PULLUP);
+    pinMode(BUTTON_PIN_1, INPUT_PULLUP);
+    pinMode(BUTTON_PIN_2, INPUT_PULLUP);
+    // digitalRead(BUTTON_PIN_0)
     // attachInterru pressed"pt(INT0, buttonPushed, FALLING);
 
-    pinMode(encoderclkpin, INPUT_PULLUP); // PULLUP should be included on the board but test showed it doesn't work as expected
-    pinMode(encoredtpin, INPUT_PULLUP);
-    encoderclk_last = digitalRead(encoderclkpin);
+    pinMode(ENCODER_PIN_CLK, INPUT_PULLUP); // PULLUP should be included on the board but test showed it doesn't work as expected
+    pinMode(ENCODER_PIN_DT, INPUT_PULLUP);
+    encoderclk_last = digitalRead(ENCODER_PIN_CLK);
 
     display.begin();
     display.setFixedFont( myfont );
@@ -150,7 +164,7 @@ void setup() {
 
 char buffer[6];
 void loop() {
-    if (!digitalRead(mode0pin)) // It is a pullup
+    if (!digitalRead(BUTTON_PIN_0)) // It is a pullup
     {
         mode = 0;
         display.printFixed(0,  0, "0 STOP      ", STYLE_NORMAL);
@@ -165,7 +179,7 @@ void loop() {
         delay(1000);
         display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
     }
-    if (!digitalRead(mode1pin)) // It is a pullup
+    if (!digitalRead(BUTTON_PIN_1)) // It is a pullup
     {
         mode = 1;
         // Wait for motor to stop if it's running
@@ -193,7 +207,7 @@ void loop() {
         // 1:3.7 4300 Full
         // 1:139 5000 Full
     }
-    if (!digitalRead(mode2pin)) // It is a pullup
+    if (!digitalRead(BUTTON_PIN_2)) // It is a pullup
     {
         mode = 2;
         display.printFixed(0,  0, "2 UNDEFINED ", STYLE_NORMAL);
@@ -203,8 +217,8 @@ void loop() {
 
     if (mode == 1) {
         // Encoder
-        unsigned int encoderclk = digitalRead(encoderclkpin);
-        unsigned int encoderdt = digitalRead(encoredtpin);
+        unsigned int encoderclk = digitalRead(ENCODER_PIN_CLK);
+        unsigned int encoderdt = digitalRead(ENCODER_PIN_DT);
         if (encoderclk_last == HIGH && encoderclk == LOW) {
             if (encoderdt == HIGH) {
                 encoderCounter++;
