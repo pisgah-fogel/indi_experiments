@@ -5,8 +5,9 @@ This directory contains source code to control a arduino based motorisation syst
 
 I am using an Arduino to control the system (easier to debug...) lateron I am thinking about a moving to an FPGA.
 
-First experiements was using AccelStepper library, because it likes certain features I am writing my own.
+First experiements was using AccelStepper library, because it lacks certain features I am writing my own.
 - Using full steps to accelerate then switch to microstepping once the target speed is reached
 - Fault detection (overcurrent or temperature)
 - Clean emergency stop (decelerate)
-- 
+
+Tested ok on Orion and Horse head nebula 2020-02-17 (Git tag "V1" - 30s and 60s exposures)
