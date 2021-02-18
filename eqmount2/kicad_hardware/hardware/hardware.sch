@@ -1,0 +1,412 @@
+EESchema Schematic File Version 4
+EELAYER 30 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 1 1
+Title ""
+Date ""
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L MCU_Module:Arduino_Nano_v3.x A?
+U 1 1 602E3BF7
+P 5000 2350
+F 0 "A?" H 5000 1261 50  0000 C CNN
+F 1 "Arduino_Nano_v3.x" H 5000 1170 50  0000 C CNN
+F 2 "Module:Arduino_Nano" H 5000 2350 50  0001 C CIN
+F 3 "http://www.mouser.com/pdfdocs/Gravitech_Arduino_Nano3_0.pdf" H 5000 2350 50  0001 C CNN
+	1    5000 2350
+	1    0    0    -1  
+$EndComp
+$Comp
+L Driver_Motor:Pololu_Breakout_DRV8825 A?
+U 1 1 602E4E99
+P 5050 5050
+F 0 "A?" H 5050 5831 50  0000 C CNN
+F 1 "Pololu_Breakout_DRV8825" H 5050 5740 50  0000 C CNN
+F 2 "Module:Pololu_Breakout-16_15.2x20.3mm" H 5250 4250 50  0001 L CNN
+F 3 "https://www.pololu.com/product/2982" H 5150 4750 50  0001 C CNN
+	1    5050 5050
+	1    0    0    -1  
+$EndComp
+$Comp
+L Motor:Stepper_Motor_bipolar M?
+U 1 1 602E5BF5
+P 6350 5300
+F 0 "M?" H 6538 5424 50  0000 L CNN
+F 1 "Stepper_Motor_bipolar" H 6538 5333 50  0000 L CNN
+F 2 "" H 6360 5290 50  0001 C CNN
+F 3 "http://www.infineon.com/dgdl/Application-Note-TLE8110EE_driving_UniPolarStepperMotor_V1.1.pdf?fileId=db3a30431be39b97011be5d0aa0a00b0" H 6360 5290 50  0001 C CNN
+	1    6350 5300
+	1    0    0    -1  
+$EndComp
+$Comp
+L Switch:SW_Push SW?
+U 1 1 602E6AED
+P 3150 1100
+F 0 "SW?" H 3150 1385 50  0000 C CNN
+F 1 "SW_Push" H 3150 1294 50  0000 C CNN
+F 2 "" H 3150 1300 50  0001 C CNN
+F 3 "~" H 3150 1300 50  0001 C CNN
+	1    3150 1100
+	1    0    0    -1  
+$EndComp
+$Comp
+L Eqmount2:LCD0.9132x168 U?
+U 1 1 602E842A
+P 7100 2550
+F 0 "U?" H 7417 2765 50  0000 C CNN
+F 1 "LCD0.9132x168" H 7417 2674 50  0000 C CNN
+F 2 "" H 7150 2550 50  0001 C CNN
+F 3 "" H 7150 2550 50  0001 C CNN
+	1    7100 2550
+	1    0    0    -1  
+$EndComp
+$Comp
+L Eqmount2:Encoder U?
+U 1 1 602E9012
+P 2900 2900
+F 0 "U?" H 2892 3165 50  0000 C CNN
+F 1 "Encoder" H 2892 3074 50  0000 C CNN
+F 2 "" H 2900 2900 50  0001 C CNN
+F 3 "" H 2900 2900 50  0001 C CNN
+	1    2900 2900
+	-1   0    0    -1  
+$EndComp
+$Comp
+L Switch:SW_Push SW?
+U 1 1 602ECE60
+P 3150 1500
+F 0 "SW?" H 3150 1785 50  0000 C CNN
+F 1 "SW_Push" H 3150 1694 50  0000 C CNN
+F 2 "" H 3150 1700 50  0001 C CNN
+F 3 "~" H 3150 1700 50  0001 C CNN
+	1    3150 1500
+	1    0    0    -1  
+$EndComp
+$Comp
+L Switch:SW_Push SW?
+U 1 1 602ED1E9
+P 3150 1900
+F 0 "SW?" H 3150 2185 50  0000 C CNN
+F 1 "SW_Push" H 3150 2094 50  0000 C CNN
+F 2 "" H 3150 2100 50  0001 C CNN
+F 3 "~" H 3150 2100 50  0001 C CNN
+	1    3150 1900
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:CP C?
+U 1 1 602ED91B
+P 4000 4000
+F 0 "C?" H 4118 4046 50  0000 L CNN
+F 1 "1000uF 50V" H 4118 3955 50  0000 L CNN
+F 2 "" H 4038 3850 50  0001 C CNN
+F 3 "~" H 4000 4000 50  0001 C CNN
+	1    4000 4000
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector:Conn_01x02_Female J?
+U 1 1 602EEBAA
+P 3450 3850
+F 0 "J?" H 3342 4035 50  0000 C CNN
+F 1 "Conn_01x02_Female" H 3342 3944 50  0000 C CNN
+F 2 "" H 3450 3850 50  0001 C CNN
+F 3 "~" H 3450 3850 50  0001 C CNN
+	1    3450 3850
+	-1   0    0    -1  
+$EndComp
+Wire Wire Line
+	6050 5200 5450 5200
+Wire Wire Line
+	5450 5200 5450 5250
+Wire Wire Line
+	5450 5350 5450 5400
+Wire Wire Line
+	5450 5400 6050 5400
+Wire Wire Line
+	5450 5050 6100 5050
+Wire Wire Line
+	6100 5050 6100 5000
+Wire Wire Line
+	6100 5000 6250 5000
+Wire Wire Line
+	5450 4950 6100 4950
+Wire Wire Line
+	6100 4950 6100 4900
+Wire Wire Line
+	6100 4900 6450 4900
+Wire Wire Line
+	6450 4900 6450 5000
+Wire Wire Line
+	3650 3850 4000 3850
+Wire Wire Line
+	4000 3850 5050 3850
+Wire Wire Line
+	5050 3850 5050 4450
+Connection ~ 4000 3850
+Wire Wire Line
+	4000 4150 4000 4200
+Wire Wire Line
+	4000 6000 5150 6000
+Wire Wire Line
+	5150 6000 5150 5850
+Wire Wire Line
+	3650 3950 3650 4200
+Wire Wire Line
+	3650 4200 4000 4200
+Connection ~ 4000 4200
+Wire Wire Line
+	4000 4200 4000 6000
+Text Notes 1900 4050 0    50   ~ 0
+I use a USB DC-DC boost concerter\nhere to generate a 12V power \n(So I can use a power bank battery...)
+Text Notes 6150 5650 0    50   ~ 0
+For my 1:3.7 NEMA and my low profile 1:1 NEMA 3-5 switch pins 3 and 5\nYou can use a multimeter to figure out your motor's wiring
+$Comp
+L power:GND #PWR?
+U 1 1 6030FCB6
+P 5100 3450
+F 0 "#PWR?" H 5100 3200 50  0001 C CNN
+F 1 "GND" H 5105 3277 50  0000 C CNN
+F 2 "" H 5100 3450 50  0001 C CNN
+F 3 "" H 5100 3450 50  0001 C CNN
+	1    5100 3450
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5100 3350 5100 3450
+$Comp
+L power:GND #PWR?
+U 1 1 60323EC4
+P 2800 1100
+F 0 "#PWR?" H 2800 850 50  0001 C CNN
+F 1 "GND" H 2805 927 50  0000 C CNN
+F 2 "" H 2800 1100 50  0001 C CNN
+F 3 "" H 2800 1100 50  0001 C CNN
+	1    2800 1100
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 603242B6
+P 2800 1500
+F 0 "#PWR?" H 2800 1250 50  0001 C CNN
+F 1 "GND" H 2805 1327 50  0000 C CNN
+F 2 "" H 2800 1500 50  0001 C CNN
+F 3 "" H 2800 1500 50  0001 C CNN
+	1    2800 1500
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 60324898
+P 2800 1900
+F 0 "#PWR?" H 2800 1650 50  0001 C CNN
+F 1 "GND" H 2805 1727 50  0000 C CNN
+F 2 "" H 2800 1900 50  0001 C CNN
+F 3 "" H 2800 1900 50  0001 C CNN
+	1    2800 1900
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2800 1100 2950 1100
+Wire Wire Line
+	2800 1500 2950 1500
+Wire Wire Line
+	2800 1900 2950 1900
+$Comp
+L power:+5V #PWR?
+U 1 1 60328FE3
+P 5200 1250
+F 0 "#PWR?" H 5200 1100 50  0001 C CNN
+F 1 "+5V" H 5215 1423 50  0000 C CNN
+F 2 "" H 5200 1250 50  0001 C CNN
+F 3 "" H 5200 1250 50  0001 C CNN
+	1    5200 1250
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5200 1250 5200 1350
+$Comp
+L power:GND #PWR?
+U 1 1 6032A589
+P 6500 2950
+F 0 "#PWR?" H 6500 2700 50  0001 C CNN
+F 1 "GND" H 6505 2777 50  0000 C CNN
+F 2 "" H 6500 2950 50  0001 C CNN
+F 3 "" H 6500 2950 50  0001 C CNN
+	1    6500 2950
+	-1   0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 6032AE08
+P 3500 3000
+F 0 "#PWR?" H 3500 2750 50  0001 C CNN
+F 1 "GND" H 3505 2827 50  0000 C CNN
+F 2 "" H 3500 3000 50  0001 C CNN
+F 3 "" H 3500 3000 50  0001 C CNN
+	1    3500 3000
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+5V #PWR?
+U 1 1 6032C1BE
+P 3650 3100
+F 0 "#PWR?" H 3650 2950 50  0001 C CNN
+F 1 "+5V" H 3665 3273 50  0000 C CNN
+F 2 "" H 3650 3100 50  0001 C CNN
+F 3 "" H 3650 3100 50  0001 C CNN
+	1    3650 3100
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+5V #PWR?
+U 1 1 6032CADB
+P 6400 2850
+F 0 "#PWR?" H 6400 2700 50  0001 C CNN
+F 1 "+5V" H 6415 3023 50  0000 C CNN
+F 2 "" H 6400 2850 50  0001 C CNN
+F 3 "" H 6400 2850 50  0001 C CNN
+	1    6400 2850
+	-1   0    0    -1  
+$EndComp
+Wire Wire Line
+	6550 2850 6400 2850
+Wire Wire Line
+	6550 2950 6500 2950
+Wire Wire Line
+	3350 3000 3500 3000
+Wire Wire Line
+	3350 3100 3650 3100
+Wire Wire Line
+	6550 2650 5900 2650
+Wire Wire Line
+	5900 2650 5900 2750
+Wire Wire Line
+	5900 2750 5500 2750
+Wire Wire Line
+	5500 2850 6000 2850
+Wire Wire Line
+	6000 2850 6000 2750
+Wire Wire Line
+	6000 2750 6550 2750
+Wire Wire Line
+	4500 2850 3950 2850
+Wire Wire Line
+	3950 2850 3950 3200
+Wire Wire Line
+	3950 3200 3350 3200
+Wire Wire Line
+	4500 2950 4050 2950
+Wire Wire Line
+	4050 2950 4050 3300
+Wire Wire Line
+	4050 3300 3350 3300
+Wire Wire Line
+	4650 5650 4500 5650
+Wire Wire Line
+	4500 5650 4500 5550
+Wire Wire Line
+	4500 5450 4650 5450
+Wire Wire Line
+	4650 5550 4500 5550
+Connection ~ 4500 5550
+Wire Wire Line
+	4500 5550 4500 5450
+Wire Wire Line
+	3350 1900 4050 1900
+Wire Wire Line
+	4050 1900 4050 2750
+Wire Wire Line
+	4050 2750 4500 2750
+Wire Wire Line
+	4500 2650 4150 2650
+Wire Wire Line
+	4150 2650 4150 1500
+Wire Wire Line
+	4150 1500 3350 1500
+Wire Wire Line
+	3350 1100 4250 1100
+Wire Wire Line
+	4250 1100 4250 2550
+Wire Wire Line
+	4250 2550 4500 2550
+Wire Wire Line
+	4500 2250 4350 2250
+Wire Wire Line
+	4350 2250 4350 5550
+Wire Wire Line
+	4350 5550 4500 5550
+Wire Wire Line
+	4650 5050 4450 5050
+Wire Wire Line
+	4450 5050 4450 2450
+Wire Wire Line
+	4450 2450 4500 2450
+Wire Wire Line
+	4650 4850 4550 4850
+Wire Wire Line
+	4550 4850 4550 4750
+Wire Wire Line
+	4550 4750 4650 4750
+$Comp
+L power:+5V #PWR?
+U 1 1 603691E3
+P 4550 4750
+F 0 "#PWR?" H 4550 4600 50  0001 C CNN
+F 1 "+5V" H 4565 4923 50  0000 C CNN
+F 2 "" H 4550 4750 50  0001 C CNN
+F 3 "" H 4550 4750 50  0001 C CNN
+	1    4550 4750
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4300 5150 4300 2150
+Wire Wire Line
+	4300 2150 4500 2150
+Wire Wire Line
+	4300 5150 4650 5150
+Wire Wire Line
+	4500 2350 4400 2350
+Wire Wire Line
+	4400 2350 4400 5250
+Wire Wire Line
+	4400 5250 4650 5250
+NoConn ~ 4650 4650
+NoConn ~ 4500 3050
+NoConn ~ 5500 3050
+NoConn ~ 5500 2950
+NoConn ~ 5500 2650
+NoConn ~ 5500 2550
+NoConn ~ 5500 2450
+NoConn ~ 5500 2350
+NoConn ~ 5500 2150
+NoConn ~ 5500 1850
+NoConn ~ 5500 1750
+NoConn ~ 4500 1750
+NoConn ~ 4500 1850
+NoConn ~ 4500 1950
+NoConn ~ 4500 2050
+NoConn ~ 4900 1350
+NoConn ~ 5100 1350
+NoConn ~ 5000 3350
+$Comp
+L power:GND #PWR?
+U 1 1 6038ED60
+P 5050 5850
+F 0 "#PWR?" H 5050 5600 50  0001 C CNN
+F 1 "GND" H 5055 5677 50  0000 C CNN
+F 2 "" H 5050 5850 50  0001 C CNN
+F 3 "" H 5050 5850 50  0001 C CNN
+	1    5050 5850
+	1    0    0    -1  
+$EndComp
+$EndSCHEMATC
