@@ -140,6 +140,15 @@ const PROGMEM uint8_t myfont []=
 unsigned char encoderclk_last;
 int encoderCounter = 0;
 unsigned char mode = 0; // State machine's state
+char buffer[10];
+
+void display_title_mode_1() {
+    display.printFixed(0,  0, "1 FORWARD    ", STYLE_NORMAL);
+    display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
+    display.printFixed(6*8,  3*8, "/1000    ", STYLE_NORMAL);
+    itoa(encoderCounter, buffer, 10);
+    display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
+}
 
 void setup() {
     Serial.begin(9600);
@@ -168,10 +177,9 @@ void setup() {
     mode = 0;
 }
 
-char buffer[10];
 void loop() {
     // Se buttons to change states (ie mode)
-    if (!digitalRead(BUTTON_PIN_0)) // It is a pullup
+    if (!digitalRead(BUTTON_PIN_0) && mode != 0) // It is a pullup
     {
         mode = 0;
         display.printFixed(0,  0, "0 STOP      ", STYLE_NORMAL);
@@ -203,9 +211,7 @@ void loop() {
         delay(1000);
         display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
 
-
-        display.printFixed(0,  0, "1 FORWARD    ", STYLE_NORMAL);
-        display.printFixed(6*8,  3*8, "/1000    ", STYLE_NORMAL);
+        display_title_mode_1();
         encoderCounter = ENCODER_DEFAULT_VALUE;
         eq_gotospeed(default_speed/(ENCODER_DEFAULT_VALUE/1000.0));
         display.printFixed(0,  3*8,ENCODER_DEFAULT_VALUE_STR " ", STYLE_NORMAL);
@@ -217,11 +223,15 @@ void loop() {
     }
     if (!digitalRead(BUTTON_PIN_2)) // It is a pullup
     {
+        // We can go back and from mode 1 / mode 2
         if (mode == 1) {
             mode = 2;
             display.printFixed(0,  0, "2 SPEED DBG", STYLE_NORMAL);
             display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
             display.printFixed(6*8,  3*8, "      ", STYLE_NORMAL);
+        } else if (mode == 2) {
+            display_title_mode_1();
+            mode = 1;
         }
     }
 
