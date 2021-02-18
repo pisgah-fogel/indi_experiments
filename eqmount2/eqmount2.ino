@@ -168,7 +168,7 @@ void setup() {
     mode = 0;
 }
 
-char buffer[6];
+char buffer[10];
 void loop() {
     // Se buttons to change states (ie mode)
     if (!digitalRead(BUTTON_PIN_0)) // It is a pullup
@@ -176,7 +176,7 @@ void loop() {
         mode = 0;
         display.printFixed(0,  0, "0 STOP      ", STYLE_NORMAL);
         display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
-        display.printFixed(8*8,  3*8, "   ", STYLE_NORMAL);
+        display.printFixed(6*8,  3*8, "      ", STYLE_NORMAL);
         eq_stop_async();
         while (!eq_stop_done()) {
             ltoa(newPeriod, buffer, 10);
@@ -193,7 +193,7 @@ void loop() {
         // Wait for motor to stop if it's running
         display.printFixed(0,  0, "1 STOPPING...", STYLE_NORMAL);        display.printFixed(0,  3*8, "0", STYLE_NORMAL);
         display.printFixed(0,  3*8, "         ", STYLE_NORMAL);
-        display.printFixed(8*8,  3*8, "   ", STYLE_NORMAL);
+        display.printFixed(6*8,  3*8, "       ", STYLE_NORMAL);
         eq_stop_async();
         while (!eq_stop_done()) {
             ltoa(newPeriod, buffer, 10);
@@ -205,7 +205,7 @@ void loop() {
 
 
         display.printFixed(0,  0, "1 FORWARD    ", STYLE_NORMAL);
-        display.printFixed(8*8,  3*8, "/1000", STYLE_NORMAL);
+        display.printFixed(6*8,  3*8, "/1000    ", STYLE_NORMAL);
         encoderCounter = ENCODER_DEFAULT_VALUE;
         eq_gotospeed(default_speed/(ENCODER_DEFAULT_VALUE/1000.0));
         display.printFixed(0,  3*8,ENCODER_DEFAULT_VALUE_STR " ", STYLE_NORMAL);
@@ -217,10 +217,12 @@ void loop() {
     }
     if (!digitalRead(BUTTON_PIN_2)) // It is a pullup
     {
-        mode = 2;
-        display.printFixed(0,  0, "2 UNDEFINED ", STYLE_NORMAL);
-        display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
-        display.printFixed(8*8,  3*8, "   ", STYLE_NORMAL);
+        if (mode == 1) {
+            mode = 2;
+            display.printFixed(0,  0, "2 SPEED DBG", STYLE_NORMAL);
+            display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
+            display.printFixed(6*8,  3*8, "      ", STYLE_NORMAL);
+        }
     }
 
     // In mode_1 use the rotary encoder to adjust the motor speed
@@ -260,7 +262,14 @@ void loop() {
             display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
         }
         encoderclk_last = encoderclk;
+    } else if (mode == 2)
+    {
+        ltoa(newPeriod, buffer, 10);
+        display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
+        ltoa(targetPeriod, buffer, 10);
+        display.printFixed(6*8,  3*8, buffer, STYLE_NORMAL);
     }
+    
 
     // TODO: GPS (get clock and position)
 
