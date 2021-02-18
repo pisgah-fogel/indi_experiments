@@ -18,16 +18,16 @@
 #endif
 
 #ifndef STEPPER_PIN_STEP
-    #error "You should define STEPPER_PIN_STEP in your sketch or do not use eqmount.hpp"
+    #error "You should define STEPPER_PIN_STEP in your sketch before including eqmount.hpp"
 #endif
 #ifndef STEPPER_PIN_DIR
-    #error "You should define STEPPER_PIN_DIR in your sketch or do not use eqmount.hpp"
+    #error "You should define STEPPER_PIN_DIR in your sketch before including eqmount.hpp"
 #endif
 #ifndef STEPPER_PIN_DISABLE
-    #error "You should define STEPPER_PIN_DISABLE in your sketch or do not use eqmount.hpp"
+    #error "You should define STEPPER_PIN_DISABLE in your sketch before including eqmount.hpp"
 #endif
 #ifndef STEPPER_PIN_MICRO
-    #error "You should define STEPPER_PIN_MICRO in your sketch or do not use eqmount.hpp"
+    #error "You should define STEPPER_PIN_MICRO in your sketch before including eqmount.hpp"
 #endif
 
 #define STEPPER_PERIOD_MIN 100000 // experimental value

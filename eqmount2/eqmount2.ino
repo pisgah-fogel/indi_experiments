@@ -4,8 +4,6 @@
 
 #include "lcdgfx.h"
 
-#include "eqmount.hpp"
-
 #define BUTTON_PIN_0 10
 #define BUTTON_PIN_1 9
 #define BUTTON_PIN_2 8
@@ -17,6 +15,8 @@
 
 #define ENCODER_PIN_CLK 12 // KY-040 encoder
 #define ENCODER_PIN_DT 11 // KY-040 encoder
+
+#include "eqmount.hpp"
 
 #ifndef __AVR_ATmega168__
 #warning "OLED pinout may not be correct on your board (23(I2C TX) 24(I2C CLK))"
@@ -139,8 +139,9 @@ unsigned char mode = 0; // State machine's state
 void setup() {
     Serial.begin(9600);
     while (!Serial);
+    Serial.setTimeout(500);
 
-    Serial.println("Eqmount 17th test");
+    Serial.println("Eqmount2 V1 Exp.");
 
     eq_setup();
 
@@ -164,6 +165,7 @@ void setup() {
 
 char buffer[6];
 void loop() {
+    // Se buttons to change states (ie mode)
     if (!digitalRead(BUTTON_PIN_0)) // It is a pullup
     {
         mode = 0;
@@ -181,6 +183,7 @@ void loop() {
     }
     if (!digitalRead(BUTTON_PIN_1)) // It is a pullup
     {
+        Serial.flush();
         mode = 1;
         // Wait for motor to stop if it's running
         display.printFixed(0,  0, "1 STOPPING...", STYLE_NORMAL);        display.printFixed(0,  3*8, "0", STYLE_NORMAL);
@@ -204,8 +207,8 @@ void loop() {
         
         // Wait for a certain number of steps
         // while(steps < 200*139);
-        // 1:3.7 4300 Full
-        // 1:139 5000 Full
+        // Max speed: 1:3.7 4300us/step Full
+        // Max speed: 1:139 5000us/step Full
     }
     if (!digitalRead(BUTTON_PIN_2)) // It is a pullup
     {
@@ -215,22 +218,30 @@ void loop() {
         display.printFixed(8*8,  3*8, "   ", STYLE_NORMAL);
     }
 
+    // In mode_1 use the rotary encoder to adjust the motor speed
     if (mode == 1) {
         // Encoder
         unsigned int encoderclk = digitalRead(ENCODER_PIN_CLK);
         unsigned int encoderdt = digitalRead(ENCODER_PIN_DT);
-        if (encoderclk_last == HIGH && encoderclk == LOW) {
-            if (encoderdt == HIGH) {
-                encoderCounter++;
-                //Serial.print(encoderCounter);
-                //Serial.println(" Clockwise");
+        bool serialAvailable = Serial.available() > 0;
+
+        // Check for new motor speed sent via Serial connection
+        // Or falling edge of encoderclk
+        if (serialAvailable || (encoderclk_last == HIGH && encoderclk == LOW)) {
+            if (serialAvailable) {
+                long tmp = Serial.parseInt(SKIP_ALL);
+                encoderCounter += tmp;
             } else {
-                encoderCounter--;
-                //Serial.print(encoderCounter);
-                //Serial.println(" Counterclockwise");
+                if (encoderdt == HIGH) {
+                    encoderCounter++;
+                } else {
+                    encoderCounter--;
+                }
             }
 
-            if (encoderCounter >= 0) {
+            if (encoderCounter == 0) {
+                eq_stop_async();
+            } if (encoderCounter > 0) {
                 dir_clockwise();
                 eq_gotospeed(default_speed/(encoderCounter/100.0));
             } else {
