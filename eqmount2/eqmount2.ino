@@ -24,9 +24,14 @@
 #define OLED_PIN_CLK 24 // Pin for I2C communication (you can write/use software I2C if you want)
 #define OLED_PIN_TX 23 // cf OLED_PIN_CLK
 
-DisplaySSD1306_128x32_I2C display(-1, {-1, 0x3C, OLED_PIN_CLK, OLED_PIN_TX, 0}); // No reset required for my board
+#define xstr(a) str(a) // xstr(ENCODER_DEFAULT_VALUE) = "940"
+#define str(a) #a // str(ENCODER_DEFAULT_VALUE) = "ENCODER_DEFAULT_VALUE"
+#define ENCODER_DEFAULT_VALUE 940
+#define ENCODER_DEFAULT_VALUE_STR xstr(ENCODER_DEFAULT_VALUE)
 
 const unsigned long default_speed = TR_MIN_TO_DELAY(0.1); // My telescope requires 1 turn per 10min
+
+DisplaySSD1306_128x32_I2C display(-1, {-1, 0x3C, OLED_PIN_CLK, OLED_PIN_TX, 0}); // No reset required for my board
 
 // Font used for the OLED display
 const PROGMEM uint8_t myfont []=
@@ -201,9 +206,9 @@ void loop() {
 
         display.printFixed(0,  0, "1 FORWARD    ", STYLE_NORMAL);
         display.printFixed(8*8,  3*8, "/1000", STYLE_NORMAL);
-        eq_gotospeed(default_speed);
-        encoderCounter = 1000;
-        display.printFixed(0,  3*8, "1000 ", STYLE_NORMAL);
+        encoderCounter = ENCODER_DEFAULT_VALUE;
+        eq_gotospeed(default_speed/(ENCODER_DEFAULT_VALUE/1000.0));
+        display.printFixed(0,  3*8,ENCODER_DEFAULT_VALUE_STR " ", STYLE_NORMAL);
         
         // Wait for a certain number of steps
         // while(steps < 200*139);
