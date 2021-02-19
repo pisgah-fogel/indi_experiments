@@ -18,8 +18,8 @@ class Eqmount2 : public INDI::Telescope
     bool Goto(double, double) override;
     bool Abort() override;
 
-    bool SetTrackRate(double raRate, double deRate);
-    bool SetTrackEnabled(bool enabled);	
+    bool SetTrackRate(double raRate, double deRate) override;
+    bool SetTrackEnabled(bool enabled) override;	
 
   private:
     double currentRA {0};

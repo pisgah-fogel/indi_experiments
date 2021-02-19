@@ -5,6 +5,8 @@
 #include <cmath>
 #include <memory>
 
+// TODO: use indicom library to communicate with the arduino
+
 static std::unique_ptr<Eqmount2> sEqMount(new Eqmount2());
 
 /**************************************************************************************
@@ -70,10 +72,29 @@ bool Eqmount2::initProperties()
     // ALWAYS call initProperties() of parent first
     INDI::Telescope::initProperties();
 
-    TrackRateN[AXIS_RA].min = 0 - 1000;
-    TrackRateN[AXIS_RA].max = 0 + 1000;
-    TrackRateN[AXIS_DE].min = -0.00;
-    TrackRateN[AXIS_DE].max = 0.00;
+    /* Tracking Mode */
+    //AddTrackMode("TRACK_SIDEREAL", "Sidereal", true);
+    //AddTrackMode("TRACK_SOLAR", "Solar"); // TODO
+    //AddTrackMode("TRACK_LUNAR", "Lunar"); // TODO
+
+    // Slew Rates
+    //strncpy(SlewRateS[0].label, "1x", MAXINDILABEL);
+    //strncpy(SlewRateS[1].label, "8x", MAXINDILABEL);
+    //strncpy(SlewRateS[2].label, "16x", MAXINDILABEL);
+    //strncpy(SlewRateS[3].label, "64x", MAXINDILABEL);
+    //strncpy(SlewRateS[4].label, "128x", MAXINDILABEL);
+    //strncpy(SlewRateS[5].label, "256x", MAXINDILABEL);
+    //strncpy(SlewRateS[6].label, "512x", MAXINDILABEL);
+    //strncpy(SlewRateS[7].label, "MAX", MAXINDILABEL);
+    //IUResetSwitch(&SlewRateSP);
+    //SlewRateS[0].s = ISS_ON; // TODO: higher slew rate by default
+
+    TrackRateN[AXIS_RA].min = TRACKRATE_SIDEREAL - 0.01;
+    TrackRateN[AXIS_RA].max = TRACKRATE_SIDEREAL + 0.01;
+    TrackRateN[AXIS_DE].min = -0.01;
+    TrackRateN[AXIS_DE].max = 0.01;
+
+    TrackState = SCOPE_IDLE;
 
     // Add Debug control so end user can turn debugging/loggin on and off
     addDebugControl();
@@ -103,13 +124,15 @@ bool Eqmount2::SetTrackRate(double raRate, double deRate)
 bool Eqmount2::SetTrackEnabled(bool enabled)
 {
     //TODO TrackRateN[AXIS_RA].value and TrackRateN[AXIS_DE].value not set ? I need them to track
-    if (enabled)
+    if (enabled) {
+        //SetTrackMode(IUFindOnSwitchIndex(&TrackModeSP));
+        //if (TrackModeS[TRACK_CUSTOM].s == ISS_ON)
+        SetTrackRate(TrackRateN[AXIS_RA].value, TrackRateN[AXIS_DE].value);
         LOG_INFO("Tracking on");
+    }
     else
         LOG_INFO("Tracking off");
     
-    SetTrackRate(TrackRateN[AXIS_RA].value, TrackRateN[AXIS_DE].value);
-
     return true;
 }
 
