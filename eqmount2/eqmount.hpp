@@ -31,7 +31,9 @@
 #endif
 
 #define STEPPER_PERIOD_MIN 100000 // experimental value
-#define STEPPER_PROP_ACCELL 0.00000000001 // experimental value
+#define STEPPER_PROP_ACCELL 0.00000000001 // Acceleration used in _update_newPeriod; experimental value
+
+#define STEPPER_CONST_ACCELL 50 // Acceleration used in _update_newPeriod; microsecond per microsecond
 
 #ifdef CURIE
     CurieTimer timer = CurieTimer();
@@ -61,9 +63,19 @@ inline void _update_newPeriod() {
         steps ++;
     else
         steps --;
+
     // Proportional
-    float remaining = ((float)newPeriod - (float)targetPeriod)*(float)newPeriod*(float)newPeriod; // > 0 when acc.
-    newPeriod = (unsigned long)((float)newPeriod - remaining*STEPPER_PROP_ACCELL);
+    //float remaining = ((float)newPeriod - (float)targetPeriod)*(float)newPeriod*(float)newPeriod; // > 0 when acc.
+    //newPeriod = (unsigned long)((float)newPeriod - remaining*STEPPER_PROP_ACCELL);
+
+    // Constant acceleration
+    long accel = newPeriod / STEPPER_CONST_ACCELL;
+    if (newPeriod > accel + targetPeriod)
+        newPeriod -= accel;
+    else if (targetPeriod > accel + newPeriod)
+        newPeriod += accel;
+    else
+        newPeriod = targetPeriod;
 }
 
 // Do not call directly

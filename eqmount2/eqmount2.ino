@@ -29,7 +29,11 @@
 #define ENCODER_DEFAULT_VALUE 940
 #define ENCODER_DEFAULT_VALUE_STR xstr(ENCODER_DEFAULT_VALUE)
 
-const unsigned long default_speed = TR_MIN_TO_DELAY(0.1); // My telescope requires 1 turn per 10min
+#define DEFAULT_SIDERAL_DELAY 26811 // 94.5% of value given by TR_MIN_TO_DELAY(0.1)
+#define DEFAULT_SIDERAL_DELAY_STR xstr(DEFAULT_SIDERAL_DELAY)
+// My telescope requires 1 turn per 10min
+// Max speed: 1:3.7 4300us/step Full
+// Max speed: 1:139 5000us/step Full
 
 DisplaySSD1306_128x32_I2C display(-1, {-1, 0x3C, OLED_PIN_CLK, OLED_PIN_TX, 0}); // No reset required for my board
 
@@ -138,16 +142,27 @@ const PROGMEM uint8_t myfont []=
 };
 
 unsigned char encoderclk_last;
-int encoderCounter = 0;
 unsigned char mode = 0; // State machine's state
 char buffer[10];
 
+void display_title_mode_0() {
+    display.fill(0x0);
+    display.printFixed(0,  0, "0 IDLE", STYLE_NORMAL);
+}
+
 void display_title_mode_1() {
-    display.printFixed(0,  0, "1 FORWARD    ", STYLE_NORMAL);
-    display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
-    display.printFixed(6*8,  3*8, "/1000    ", STYLE_NORMAL);
-    itoa(encoderCounter, buffer, 10);
-    display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
+    display.fill(0x0);
+}
+
+void wait_motor_stop() {
+    while (!eq_stop_done()) {
+        ltoa(newPeriod, buffer, 10);
+        display.printFixed(0,  3*8, buffer, STYLE_NORMAL); // Print progress
+        delay(1000);
+    }
+    display.printFixed(0,  3*8, "STOPPED    ", STYLE_NORMAL); // Clear line
+    delay(1000);
+    display.printFixed(0,  3*8, "           ", STYLE_NORMAL); // Clear line
 }
 
 void setup() {
@@ -171,9 +186,8 @@ void setup() {
 
     display.begin();
     display.setFixedFont( myfont );
-    display.fill(0x0);
-    display.printFixed(0,  0, "0 STOP", STYLE_NORMAL);
 
+    display_title_mode_0();
     mode = 0;
 }
 
@@ -182,61 +196,43 @@ void loop() {
     if (!digitalRead(BUTTON_PIN_0) && mode != 0) // It is a pullup
     {
         mode = 0;
-        display.printFixed(0,  0, "0 STOP      ", STYLE_NORMAL);
-        display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
-        display.printFixed(6*8,  3*8, "      ", STYLE_NORMAL);
-        eq_stop_async();
-        while (!eq_stop_done()) {
-            ltoa(newPeriod, buffer, 10);
-            display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
-            delay(1000);
+        display_title_mode_0();
+        if (timer_running) {
+            eq_stop_async();
+            wait_motor_stop();
         }
-        delay(1000);
-        display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
     }
     if (!digitalRead(BUTTON_PIN_1)) // It is a pullup
     {
-        Serial.flush();
         mode = 1;
-        // Wait for motor to stop if it's running
-        display.printFixed(0,  0, "1 STOPPING...", STYLE_NORMAL);        display.printFixed(0,  3*8, "0", STYLE_NORMAL);
-        display.printFixed(0,  3*8, "         ", STYLE_NORMAL);
-        display.printFixed(6*8,  3*8, "       ", STYLE_NORMAL);
-        eq_stop_async();
-        while (!eq_stop_done()) {
-            ltoa(newPeriod, buffer, 10);
-            display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
-            delay(1000);
-        }
-        delay(1000);
-        display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
-
         display_title_mode_1();
-        encoderCounter = ENCODER_DEFAULT_VALUE;
-        eq_gotospeed(default_speed/(ENCODER_DEFAULT_VALUE/1000.0));
-        display.printFixed(0,  3*8,ENCODER_DEFAULT_VALUE_STR " ", STYLE_NORMAL);
-        
-        // Wait for a certain number of steps
-        // while(steps < 200*139);
-        // Max speed: 1:3.7 4300us/step Full
-        // Max speed: 1:139 5000us/step Full
+
+        if (timer_running) {
+            display.printFixed(0,  0, "1 STOPPING...", STYLE_NORMAL); // Replace first line
+
+            Serial.flush();
+            // Wait for motor to stop if it is running
+            eq_stop_async();
+            wait_motor_stop();
+        }
+        display.printFixed(0,  0, "1 SIDERAL    ", STYLE_NORMAL);
+        eq_gotospeed(DEFAULT_SIDERAL_DELAY);
+        display.printFixed(0,  3*8, "+ inf", STYLE_NORMAL);
+        display.printFixed(6*8,  3*8, DEFAULT_SIDERAL_DELAY_STR, STYLE_NORMAL);
     }
     if (!digitalRead(BUTTON_PIN_2)) // It is a pullup
     {
-        // We can go back and from mode 1 / mode 2
-        if (mode == 1) {
-            mode = 2;
-            display.printFixed(0,  0, "2 SPEED DBG", STYLE_NORMAL);
-            display.printFixed(0,  3*8, "          ", STYLE_NORMAL);
-            display.printFixed(6*8,  3*8, "      ", STYLE_NORMAL);
-        } else if (mode == 2) {
-            display_title_mode_1();
-            mode = 1;
-        }
+        // Unused
     }
 
     // In mode_1 use the rotary encoder to adjust the motor speed
-    if (mode == 1) {
+    if (mode == 0) {
+        if (Serial.available() > 0) {
+            // TODO: enter tracking
+            Serial.flush();
+        }
+    }
+    else if (mode == 1) {
         // Encoder
         unsigned int encoderclk = digitalRead(ENCODER_PIN_CLK);
         unsigned int encoderdt = digitalRead(ENCODER_PIN_DT);
@@ -247,37 +243,26 @@ void loop() {
         if (serialAvailable || (encoderclk_last == HIGH && encoderclk == LOW)) {
             if (serialAvailable) {
                 long tmp = Serial.parseInt(SKIP_ALL);
-                encoderCounter += tmp;
+                targetPeriod += tmp;
             } else {
                 if (encoderdt == HIGH) {
-                    encoderCounter++;
+                    targetPeriod -= 10;
                 } else {
-                    encoderCounter--;
+                    targetPeriod += 10;
                 }
             }
 
-            if (encoderCounter == 0) {
-                eq_stop_async();
-            } if (encoderCounter > 0) {
-                dir_clockwise();
-                eq_gotospeed(default_speed/(encoderCounter/1000.0));
-            } else {
-                dir_counterclockwise();
-                eq_gotospeed(default_speed/((-1*encoderCounter)/1000.0));
-            }
-
             // Display
-            display.printFixed(0,  3*8, "      ", STYLE_NORMAL);
-            itoa(encoderCounter, buffer, 10);
-            display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
+            ltoa(targetPeriod, buffer, 10);
+            display.printFixed(6*8,  3*8, buffer, STYLE_NORMAL);
         }
         encoderclk_last = encoderclk;
-    } else if (mode == 2)
-    {
+
         ltoa(newPeriod, buffer, 10);
         display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
-        ltoa(targetPeriod, buffer, 10);
-        display.printFixed(6*8,  3*8, buffer, STYLE_NORMAL);
+    } else if (mode == 2)
+    {
+        // Unused
     }
     
 
