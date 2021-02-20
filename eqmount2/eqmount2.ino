@@ -202,7 +202,7 @@ void loop() {
             wait_motor_stop();
         }
     }
-    if (!digitalRead(BUTTON_PIN_1)) // It is a pullup
+    if (!digitalRead(BUTTON_PIN_1) && mode != 1) // It is a pullup
     {
         mode = 1;
         display_title_mode_1();
@@ -220,7 +220,7 @@ void loop() {
         display.printFixed(0,  3*8, "+ inf", STYLE_NORMAL);
         display.printFixed(6*8,  3*8, DEFAULT_SIDERAL_DELAY_STR, STYLE_NORMAL);
     }
-    if (!digitalRead(BUTTON_PIN_2)) // It is a pullup
+    if (!digitalRead(BUTTON_PIN_2)  && mode != 2) // It is a pullup
     {
         // Unused
     }
