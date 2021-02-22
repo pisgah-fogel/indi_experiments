@@ -229,6 +229,7 @@ void loop() {
             dir_clockwise();
         }
         display.printFixed(0,  0, "1 SIDERAL    ", STYLE_NORMAL);
+        delay(500); // Try to make sure we are going in the right direction
         eq_gotospeed(DEFAULT_SIDERAL_DELAY);
         display.printFixed(0,  3*8, "+ inf", STYLE_NORMAL);
         display.printFixed(6*8,  3*8, DEFAULT_SIDERAL_DELAY_STR, STYLE_NORMAL);
@@ -312,7 +313,8 @@ void loop() {
             eq_stop_async();
             wait_motor_stop();
             dir_clockwise(); // Avoid problem if other functions do not expect counterwise...
-            eq_gotospeed(DEFAULT_SIDERAL_DELAY); // Now tracking
+            delay(1000); // Try to make sure we are going in the right direction
+            eq_gotospeed(DEFAULT_SIDERAL_DELAY); // Now tracking; TODO: Not working !!!
             display_title_mode_2();
         } else if (slew_mode == 1) {
             display.printFixed(0,  0, "Going forward...  ", STYLE_NORMAL);
