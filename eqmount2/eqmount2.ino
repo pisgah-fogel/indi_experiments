@@ -29,7 +29,10 @@
 #define ENCODER_DEFAULT_VALUE 940
 #define ENCODER_DEFAULT_VALUE_STR xstr(ENCODER_DEFAULT_VALUE)
 
-#define DEFAULT_SIDERAL_DELAY 26300 // Experimental: 94.5% of value given by TR_MIN_TO_DELAY(0.1)
+#define DEFAULT_SIDERAL_DELAY 26253 // Experimental: 94.5% of value given by TR_MIN_TO_DELAY(0.1)
+// TODO: change with 26260 too slow/5min: trying 26255, little bit slow ? Bests results so far
+// Trying 26250
+
 //#define DEFAULT_SIDERAL_DELAY 25338 // Default value = TR_MIN_TO_DELAY(0.1)
 #define DEFAULT_SIDERAL_DELAY_STR xstr(DEFAULT_SIDERAL_DELAY)
 // My telescope requires 1 turn per 10min
@@ -216,16 +219,16 @@ void loop() {
         mode = 1;
         display_title_mode_1();
 
-        if (timer_running) {
+        if (!dir_clockwise()) {
             display.printFixed(0,  0, "1 STOPPING...", STYLE_NORMAL); // Replace first line
 
             Serial.flush();
             // Wait for motor to stop if it is running
             eq_stop_async();
             wait_motor_stop();
+            dir_clockwise();
         }
         display.printFixed(0,  0, "1 SIDERAL    ", STYLE_NORMAL);
-        dir_clockwise();
         eq_gotospeed(DEFAULT_SIDERAL_DELAY);
         display.printFixed(0,  3*8, "+ inf", STYLE_NORMAL);
         display.printFixed(6*8,  3*8, DEFAULT_SIDERAL_DELAY_STR, STYLE_NORMAL);
@@ -257,9 +260,9 @@ void loop() {
                 targetPeriod += tmp;
             } else {
                 if (encoderdt == HIGH) {
-                    targetPeriod -= 5;
+                    targetPeriod -= 1;
                 } else {
-                    targetPeriod += 5;
+                    targetPeriod += 1;
                 }
             }
 
@@ -291,8 +294,13 @@ void loop() {
         encoderclk_last = encoderclk;
         
         if(slew_mode == 2) {
-            display.printFixed(0,  0, "Going back...     ", STYLE_NORMAL);
+            if (!dir_counterclockwise()) {
+                display.printFixed(0,  0, "Changing direction ", STYLE_NORMAL);
+                eq_stop_async();
+                wait_motor_stop();
+            }
             dir_counterclockwise();
+            display.printFixed(0,  0, "Going back...     ", STYLE_NORMAL);
             eq_gotospeed(SLEW_SPEED);
             long target_steps = steps - SLEW_STEPS;
             while (steps > target_steps) {
@@ -300,9 +308,11 @@ void loop() {
                 display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
                 delay(500);
             }
-            display.printFixed(0,  0, "Done, stopping...", STYLE_NORMAL);
+            display.printFixed(0,  0, "Done, now tracking", STYLE_NORMAL);
             eq_stop_async();
             wait_motor_stop();
+            dir_clockwise(); // Avoid problem if other functions do not expect counterwise...
+            eq_gotospeed(DEFAULT_SIDERAL_DELAY); // Now tracking
             display_title_mode_2();
         } else if (slew_mode == 1) {
             display.printFixed(0,  0, "Going forward...  ", STYLE_NORMAL);
@@ -314,9 +324,10 @@ void loop() {
                 display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
                 delay(500);
             }
-            display.printFixed(0,  0, "Done, stopping...", STYLE_NORMAL);
-            eq_stop_async();
-            wait_motor_stop();
+            display.printFixed(0,  0, "Done, back to trck.", STYLE_NORMAL);
+            //eq_stop_async();
+            //wait_motor_stop();
+            eq_gotospeed(DEFAULT_SIDERAL_DELAY); // Now tracking
             display_title_mode_2();
         }
     }

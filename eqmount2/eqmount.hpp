@@ -99,18 +99,22 @@ void _callback_timer() {
 
 // Set the motor to turn clockwise
 // Stop the motor before calling this function
-void dir_clockwise() {
-    // TODO: check if the motor is turning ?
+bool dir_clockwise() {
+    if (timer_running && direction)
+        return false;
     digitalWrite(STEPPER_PIN_DIR, HIGH);
     direction = 0;
+    return true;
 }
 
 // Set the motor to turn counterclockwise
 // Stop the motor before calling this function
-void dir_counterclockwise() {
-    // TODO: check if the motor is turning ?
+bool dir_counterclockwise() {
+    if (timer_running && direction == 0)
+        return false;
     digitalWrite(STEPPER_PIN_DIR, LOW);
     direction = 1;
+    return true;
 }
 
 // Call it to setup outputs and timer
