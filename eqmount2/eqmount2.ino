@@ -29,11 +29,15 @@
 #define ENCODER_DEFAULT_VALUE 940
 #define ENCODER_DEFAULT_VALUE_STR xstr(ENCODER_DEFAULT_VALUE)
 
-#define DEFAULT_SIDERAL_DELAY 26811 // 94.5% of value given by TR_MIN_TO_DELAY(0.1)
+#define DEFAULT_SIDERAL_DELAY 26300 // Experimental: 94.5% of value given by TR_MIN_TO_DELAY(0.1)
+//#define DEFAULT_SIDERAL_DELAY 25338 // Default value = TR_MIN_TO_DELAY(0.1)
 #define DEFAULT_SIDERAL_DELAY_STR xstr(DEFAULT_SIDERAL_DELAY)
 // My telescope requires 1 turn per 10min
 // Max speed: 1:3.7 4300us/step Full
 // Max speed: 1:139 5000us/step Full
+
+#define SLEW_SPEED DEFAULT_SIDERAL_DELAY/7
+#define SLEW_STEPS (200*3.7*2.4*2)
 
 DisplaySSD1306_128x32_I2C display(-1, {-1, 0x3C, OLED_PIN_CLK, OLED_PIN_TX, 0}); // No reset required for my board
 
@@ -154,6 +158,11 @@ void display_title_mode_1() {
     display.fill(0x0);
 }
 
+void display_title_mode_2() {
+    display.fill(0x0);
+    display.printFixed(0,  0, "2 SLEW", STYLE_NORMAL);
+}
+
 void wait_motor_stop() {
     while (!eq_stop_done()) {
         ltoa(newPeriod, buffer, 10);
@@ -216,13 +225,15 @@ void loop() {
             wait_motor_stop();
         }
         display.printFixed(0,  0, "1 SIDERAL    ", STYLE_NORMAL);
+        dir_clockwise();
         eq_gotospeed(DEFAULT_SIDERAL_DELAY);
         display.printFixed(0,  3*8, "+ inf", STYLE_NORMAL);
         display.printFixed(6*8,  3*8, DEFAULT_SIDERAL_DELAY_STR, STYLE_NORMAL);
     }
     if (!digitalRead(BUTTON_PIN_2)  && mode != 2) // It is a pullup
     {
-        // Unused
+        mode = 2;
+        display_title_mode_2();
     }
 
     // In mode_1 use the rotary encoder to adjust the motor speed
@@ -246,9 +257,9 @@ void loop() {
                 targetPeriod += tmp;
             } else {
                 if (encoderdt == HIGH) {
-                    targetPeriod -= 10;
+                    targetPeriod -= 5;
                 } else {
-                    targetPeriod += 10;
+                    targetPeriod += 5;
                 }
             }
 
@@ -262,7 +273,52 @@ void loop() {
         display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
     } else if (mode == 2)
     {
-        // Unused
+        unsigned char slew_mode = 0;
+        // Encode
+        unsigned int encoderclk = digitalRead(ENCODER_PIN_CLK);
+        unsigned int encoderdt = digitalRead(ENCODER_PIN_DT);
+        bool serialAvailable = Serial.available() > 0;
+
+        // Check for new motor speed sent via Serial connection
+        // Or falling edge of encoderclk
+        if (serialAvailable || (encoderclk_last == HIGH && encoderclk == LOW)) {
+            if (encoderdt == HIGH) {
+                slew_mode = 1;
+            } else {
+                slew_mode = 2;
+            }
+        }
+        encoderclk_last = encoderclk;
+        
+        if(slew_mode == 2) {
+            display.printFixed(0,  0, "Going back...     ", STYLE_NORMAL);
+            dir_counterclockwise();
+            eq_gotospeed(SLEW_SPEED);
+            long target_steps = steps - SLEW_STEPS;
+            while (steps > target_steps) {
+                ltoa(steps-target_steps, buffer, 10);
+                display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
+                delay(500);
+            }
+            display.printFixed(0,  0, "Done, stopping...", STYLE_NORMAL);
+            eq_stop_async();
+            wait_motor_stop();
+            display_title_mode_2();
+        } else if (slew_mode == 1) {
+            display.printFixed(0,  0, "Going forward...  ", STYLE_NORMAL);
+            dir_clockwise();
+            eq_gotospeed(SLEW_SPEED);
+            long target_steps = steps + SLEW_STEPS;
+            while (steps < target_steps) {
+                ltoa(target_steps-steps, buffer, 10);
+                display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
+                delay(500);
+            }
+            display.printFixed(0,  0, "Done, stopping...", STYLE_NORMAL);
+            eq_stop_async();
+            wait_motor_stop();
+            display_title_mode_2();
+        }
     }
     
 
