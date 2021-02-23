@@ -15,6 +15,7 @@
 
 #define ENCODER_PIN_CLK 12 // KY-040 encoder
 #define ENCODER_PIN_DT 11 // KY-040 encoder
+#define ENCODER_PIN_SW 13
 
 #include "eqmount.hpp"
 
@@ -151,6 +152,7 @@ const PROGMEM uint8_t myfont []=
 unsigned char encoderclk_last;
 unsigned char mode = 0; // State machine's state
 char buffer[10];
+int slew_counter = 0;
 
 void display_title_mode_0() {
     display.fill(0x0);
@@ -189,8 +191,7 @@ void setup() {
     pinMode(BUTTON_PIN_0, INPUT_PULLUP);
     pinMode(BUTTON_PIN_1, INPUT_PULLUP);
     pinMode(BUTTON_PIN_2, INPUT_PULLUP);
-    // digitalRead(BUTTON_PIN_0)
-    // attachInterru pressed"pt(INT0, buttonPushed, FALLING);
+    pinMode(ENCODER_PIN_SW, INPUT_PULLUP);
 
     pinMode(ENCODER_PIN_CLK, INPUT_PULLUP); // PULLUP should be included on the board but test showed it doesn't work as expected
     pinMode(ENCODER_PIN_DT, INPUT_PULLUP);
@@ -238,6 +239,7 @@ void loop() {
     {
         mode = 2;
         display_title_mode_2();
+        display.printFixed(0,  3*8, "0       ", STYLE_NORMAL);
     }
 
     // In mode_1 use the rotary encoder to adjust the motor speed
@@ -277,8 +279,7 @@ void loop() {
         display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
     } else if (mode == 2)
     {
-        unsigned char slew_mode = 0;
-        // Encode
+        // Encoder
         unsigned int encoderclk = digitalRead(ENCODER_PIN_CLK);
         unsigned int encoderdt = digitalRead(ENCODER_PIN_DT);
         bool serialAvailable = Serial.available() > 0;
@@ -287,50 +288,56 @@ void loop() {
         // Or falling edge of encoderclk
         if (serialAvailable || (encoderclk_last == HIGH && encoderclk == LOW)) {
             if (encoderdt == HIGH) {
-                slew_mode = 1;
+                slew_counter++;
             } else {
-                slew_mode = 2;
+                slew_counter--;
             }
+            itoa(slew_counter, buffer, 10);
+            display.printFixed(0,  3*8, "        ", STYLE_NORMAL); // clear line
+            display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
         }
         encoderclk_last = encoderclk;
-        
-        if(slew_mode == 2) {
-            if (!dir_counterclockwise()) {
-                display.printFixed(0,  0, "Changing direction ", STYLE_NORMAL);
+
+        if(!digitalRead(ENCODER_PIN_SW))
+        {
+            if(slew_counter < 0) {
+                if (!dir_counterclockwise()) {
+                    display.printFixed(0,  0, "Changing direction ", STYLE_NORMAL);
+                    eq_stop_async();
+                    wait_motor_stop();
+                }
+                dir_counterclockwise();
+                display.printFixed(0,  0, "Going back...     ", STYLE_NORMAL);
+                eq_gotospeed(SLEW_SPEED);
+                long target_steps = steps + slew_counter*SLEW_STEPS;
+                while (steps > target_steps && digitalRead(ENCODER_PIN_SW)) { // switch encoder to abord
+                    ltoa(steps-target_steps, buffer, 10);
+                    display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
+                    delay(500);
+                }
+                display.printFixed(0,  0, "Done, now tracking", STYLE_NORMAL);
                 eq_stop_async();
                 wait_motor_stop();
+                dir_clockwise(); // Avoid problem if other functions do not expect counterwise...
+                delay(1000); // Try to make sure we are going in the right direction
+                eq_gotospeed(DEFAULT_SIDERAL_DELAY); // Now tracking; TODO: Not working !!!
+                display_title_mode_2();
+            } else if (slew_counter > 0) {
+                display.printFixed(0,  0, "Going forward...  ", STYLE_NORMAL);
+                dir_clockwise();
+                eq_gotospeed(SLEW_SPEED);
+                long target_steps = steps + slew_counter*SLEW_STEPS;
+                while (steps < target_steps && digitalRead(ENCODER_PIN_SW)) { // switch encoder to abord
+                    ltoa(target_steps-steps, buffer, 10);
+                    display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
+                    delay(500);
+                }
+                display.printFixed(0,  0, "Done, back to trck.", STYLE_NORMAL);
+                //eq_stop_async();
+                //wait_motor_stop();
+                eq_gotospeed(DEFAULT_SIDERAL_DELAY); // Now tracking
+                display_title_mode_2();
             }
-            dir_counterclockwise();
-            display.printFixed(0,  0, "Going back...     ", STYLE_NORMAL);
-            eq_gotospeed(SLEW_SPEED);
-            long target_steps = steps - SLEW_STEPS;
-            while (steps > target_steps) {
-                ltoa(steps-target_steps, buffer, 10);
-                display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
-                delay(500);
-            }
-            display.printFixed(0,  0, "Done, now tracking", STYLE_NORMAL);
-            eq_stop_async();
-            wait_motor_stop();
-            dir_clockwise(); // Avoid problem if other functions do not expect counterwise...
-            delay(1000); // Try to make sure we are going in the right direction
-            eq_gotospeed(DEFAULT_SIDERAL_DELAY); // Now tracking; TODO: Not working !!!
-            display_title_mode_2();
-        } else if (slew_mode == 1) {
-            display.printFixed(0,  0, "Going forward...  ", STYLE_NORMAL);
-            dir_clockwise();
-            eq_gotospeed(SLEW_SPEED);
-            long target_steps = steps + SLEW_STEPS;
-            while (steps < target_steps) {
-                ltoa(target_steps-steps, buffer, 10);
-                display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
-                delay(500);
-            }
-            display.printFixed(0,  0, "Done, back to trck.", STYLE_NORMAL);
-            //eq_stop_async();
-            //wait_motor_stop();
-            eq_gotospeed(DEFAULT_SIDERAL_DELAY); // Now tracking
-            display_title_mode_2();
         }
     }
     
