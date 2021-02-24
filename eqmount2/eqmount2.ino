@@ -300,6 +300,8 @@ void loop() {
 
         if(!digitalRead(ENCODER_PIN_SW))
         {
+            display.printFixed(0,  0, "Release button ", STYLE_NORMAL);
+            delay(1000);
             if(slew_counter < 0) {
                 if (!dir_counterclockwise()) {
                     display.printFixed(0,  0, "Changing direction ", STYLE_NORMAL);
@@ -319,7 +321,9 @@ void loop() {
                 eq_stop_async();
                 wait_motor_stop();
                 dir_clockwise(); // Avoid problem if other functions do not expect counterwise...
-                delay(1000); // Try to make sure we are going in the right direction
+                delay(500); // Try to make sure we are going in the right direction
+                dir_clockwise();
+                delay(500);
                 eq_gotospeed(DEFAULT_SIDERAL_DELAY); // Now tracking; TODO: Not working !!!
                 display_title_mode_2();
             } else if (slew_counter > 0) {
