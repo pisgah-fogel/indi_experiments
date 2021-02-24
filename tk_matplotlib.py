@@ -47,28 +47,20 @@ import json
 import os
 
 from astropy.io import fits
-
+from astropy.visualization import (imshow_norm, MinMaxInterval,
+                                   SqrtStretch)
+from astropy.visualization import make_lupton_rgb, ImageNormalize, simple_norm, HistEqStretch, SinhStretch
 ###############################################################################
 
 CONFIG_FILE_NAME = ".fitsviewer.json"
 
 LAST_OPENED_FILES_LIST_MAX_SIZE = 15
 
-DEFAULT_COLOR_MAP = "gnuplot2" # "gray"
-
 # histogram types : [‘bar’ | ‘barstacked’ | ‘step’ | ‘stepfilled’]
 HISTOGRAM_TYPE = 'bar'
 
 #IMAGE_INTERPOLATION = 'bilinear'   # "smooth" map
 IMAGE_INTERPOLATION = 'nearest'    # "raw" (non smooth) map
-
-###############################################################################
-
-def get_colour_map_list():
-    """Return the list of the available colormaps."""
-    return sorted(plt.cm.datad)
-
-###############################################################################
 
 class TkGUI:
     """
@@ -90,7 +82,6 @@ class TkGUI:
 
         # Gui parameters ##############
 
-        self._color_map = tk.StringVar()
         self._show_color_bar = tk.BooleanVar()
         self._show_image = tk.BooleanVar()
         self._show_histogram = tk.BooleanVar()
@@ -160,17 +151,6 @@ class TkGUI:
 
         self.menubar.add_cascade(label="View", menu=view_menu)
 
-        # Create a pulldown menu: /View/Color Map
-        colormap_menu = tk.Menu(view_menu, tearoff=0)
-
-        for cmap_str in get_colour_map_list():
-            colormap_menu.add_radiobutton(label=cmap_str,
-                                          variable=self._color_map,
-                                          value=cmap_str,
-                                          command=self.draw_figure)
-
-        view_menu.add_cascade(label="Color Map", menu=colormap_menu)
-
         # Display the menu
         # The config method is used to attach the menu to the root window. The
         # contents of that menu is used to create a menubar at the top of the root
@@ -198,9 +178,6 @@ class TkGUI:
                     self.last_opened_files = json_dict["last_opened_files"]
                     self.update_open_recent_menu()
 
-                if (self.color_map is None) and ("color_map" in json_dict):
-                    self.color_map = json_dict["color_map"]
-
                 #if (self.show_color_bar is None) and ("show_color_bar" in json_dict):
                 #    self.show_color_bar = json_dict["show_color_bar"]
 
@@ -226,7 +203,6 @@ class TkGUI:
 
         json_dict = {}
         json_dict["last_opened_files"] = self.last_opened_files
-        json_dict["color_map"] = self.color_map
         #json_dict["show_color_bar"] = self.show_color_bar
         #json_dict["show_image"] = self.show_image
         #json_dict["show_histogram"] = self.show_histogram
@@ -415,10 +391,24 @@ class TkGUI:
 
                     # Get the image #############
                     if hdu.data.ndim <= 2:
+                        print("Warning: 2 or 1 Layer file")
                         image_array = hdu.data
                     elif hdu.data.ndim == 3:
-                        image_array = hdu.data[0]                  # TODO
+                        # WIP: RGB plot
+                        print("Warning: 3 Layers file")
+                        image_array = np.dstack([hdu.data[0],hdu.data[1],hdu.data[2]]) # Works but slow
+                        #image_array = make_lupton_rgb(hdu.data[0],hdu.data[1],hdu.data[2], Q=10, stretch=0.05) # Do not work for all image type
+                        #image_array = hdu.data[0] # Mono
+
+                        #self.imgnorme = simple_norm(image_array, 'sqrt') # Does nothing
+                        # Stretch datas
+
+                        # TODO: ContrastBiasStretch: A stretch that takes into account contrast and bias.
+
+                        #image_array, self.imgnorme = imshow_norm(image_array, interval=MinMaxInterval(), stretch=HistEqStretch())
+
                     elif hdu.data.ndim == 4:
+                        print("Warning: 4 Layers file")
                         image_array = hdu.data[0][0]               # TODO
                     else:
                         raise Exception("Internal error.")
@@ -480,14 +470,13 @@ class TkGUI:
 
     def _draw_image(self, axis, image_array):
 
-        if image_array.ndim == 1:
-            image_array = np.tile(image_array, (256, 1))  # TODO ?
-            axis.get_yaxis().set_visible(False)
+        im, self.imgnorme = imshow_norm(image_array, stretch=HistEqStretch(image_array))
+        
+        #im, self.imgnorme = imshow_norm(image_array, stretch=SinhStretch())
 
-        im = axis.imshow(image_array,
-                         origin='lower',
-                         interpolation=IMAGE_INTERPOLATION,
-                         cmap=self.color_map)
+        # im = axis.imshow(image_array,
+        # origin='lower',
+        # interpolation=IMAGE_INTERPOLATION, norm=self.imgnorme)
 
         #axis.set_axis_off()
 
@@ -541,17 +530,6 @@ class TkGUI:
     def show_histogram(self, value):
         self._show_histogram.set(value)
 
-    ###
-
-    @property
-    def color_map(self):
-        return self._color_map.get()
-
-    @color_map.setter
-    def color_map(self, value):
-        self._color_map.set(value)
-
-
 def main():
 
     root = tk.Tk()   # TODO ?
@@ -562,13 +540,6 @@ def main():
     # PARSE OPTIONS ###########################################################
 
     parser = argparse.ArgumentParser(description="Display a FITS file.")
-
-    parser.add_argument("--cmap", "-C", default=DEFAULT_COLOR_MAP, metavar="STRING",
-            help="the colormap to use. The list of available color maps is available here: "
-                 "http://matplotlib.org/examples/color/colormaps_reference.html")
-
-    parser.add_argument("--hidecbar", "-c", action="store_true",
-            help="hide the color bar")
 
     parser.add_argument("--hideimage", "-i", action="store_true",
             help="hide the image")
@@ -585,8 +556,6 @@ def main():
 
     # SET OPTIONS #############################################################
 
-    gui.color_map = args.cmap
-    gui.show_color_bar = not args.hidecbar
     gui.show_image = not args.hideimage
     gui.show_histogram = args.showhist
 
@@ -600,4 +569,15 @@ def main():
 if __name__ == "__main__":
     main()
 
-
+# Here is an example of getting the median image from three input images of the size 5000x5000.
+# hdul1 = fits.open('file1.fits')
+# hdul2 = fits.open('file2.fits')
+# hdul3 = fits.open('file3.fits')
+# output = np.zeros((5000, 5000))
+# for i in range(50):
+#     j = i * 100
+#     k = j + 100
+#     x1 = hdul1[0].section[j:k,:]
+#     x2 = hdul2[0].section[j:k,:]
+#     x3 = hdul3[0].section[j:k,:]
+#     output[j:k, :] = np.median([x1, x2, x3], axis=0)
