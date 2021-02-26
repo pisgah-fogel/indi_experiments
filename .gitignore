@@ -3,3 +3,5 @@
 *.bck
 *-cache*
 **/build
+**/*.FCStd1
+
