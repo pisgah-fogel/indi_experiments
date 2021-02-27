@@ -22,6 +22,8 @@
 #ifndef __AVR_ATmega168__
 #warning "OLED pinout may not be correct on your board (23(I2C TX) 24(I2C CLK))"
 #endif
+// Arduino Nano Atmega168: 24-23
+// Arduino Pro mini: 28-27 ? In arduino choose model "Arduino Pro", Atmega328P (3.3V, 8MHz), Arduino as ISCP and Program using programmer
 #define OLED_PIN_CLK 24 // Pin for I2C communication (you can write/use software I2C if you want)
 #define OLED_PIN_TX 23 // cf OLED_PIN_CLK
 
