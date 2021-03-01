@@ -45,6 +45,8 @@
 #define SLEW_SPEED DEFAULT_SIDERAL_DELAY/7
 #define SLEW_STEPS (200*3.7*2.4*2)
 
+long encoder_step = 1;
+
 DisplaySSD1306_128x32_I2C display(-1, {-1, 0x3C, OLED_PIN_CLK, OLED_PIN_TX, 0}); // No reset required for my board
 
 // Font used for the OLED display
@@ -252,6 +254,21 @@ void loop() {
         }
     }
     else if (mode == 1) {
+        if(!digitalRead(ENCODER_PIN_SW)) {
+            if (encoder_step == 1) {
+                encoder_step = 100;
+            } else if (encoder_step == 100) {
+                encoder_step = 1000;
+            } else {
+                encoder_step = 1;
+            }
+            ltoa(encoder_step, buffer, 10);
+            display.printFixed(0,  2*8, "x", STYLE_NORMAL);
+            display.printFixed(1,  2*8, buffer, STYLE_NORMAL);
+            delay(1000);
+            display.printFixed(0,  2*8, "            ", STYLE_NORMAL);
+        }
+
         // Encoder
         unsigned int encoderclk = digitalRead(ENCODER_PIN_CLK);
         unsigned int encoderdt = digitalRead(ENCODER_PIN_DT);
@@ -265,9 +282,9 @@ void loop() {
                 targetPeriod += tmp;
             } else {
                 if (encoderdt == HIGH) {
-                    targetPeriod -= 1;
+                    targetPeriod -= encoder_step;
                 } else {
-                    targetPeriod += 1;
+                    targetPeriod += encoder_step;
                 }
             }
 
