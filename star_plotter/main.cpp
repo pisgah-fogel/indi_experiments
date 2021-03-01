@@ -10,86 +10,95 @@ int main(int argc, char *argv[])
 {
     fitsfile *fptr;
     char card[FLEN_CARD];
-    int status = 0, nkeys, ii; /* MUST initialize status */
+    int status = 0, nkeys, ii;
 
+    // Open the file
     fits_open_file(&fptr, argv[1], READONLY, &status);
     fits_get_hdrspace(fptr, &nkeys, NULL, &status);
 
+    // List every meta data
     for (ii = 1; ii <= nkeys; ii++)
     {
-        fits_read_record(fptr, ii, card, &status); /* read keyword */
+        fits_read_record(fptr, ii, card, &status);
         printf("%s\n", card);
     }
-    printf("END\n\n"); /* terminate listing with END */
 
-    // Alternative: Use fits_get_img_param instead
-
+    // Read every pixel, stretch resize and display
     int bitpix;
     int ret = fits_get_img_type(fptr, &bitpix, &status);
-    cout << "bitpix: " << bitpix << " ("<<ret<<")"<< endl;
+    cout << "Depth : " << bitpix << "bits" << endl;
+    if (ret != 0) {
+        cout << "Error: could not determine depth" << endl;
+    }
+    if (bitpix != 8) {
+        cout << "Warning: Only 8 bits images have been tested" << endl;
+    }
 
     int naxis;
     ret = fits_get_img_dim(fptr, &naxis, &status);
-    cout << "dim: naxis: " << naxis << " ("<<ret<<")"<< endl;
+    if (ret != 0) {
+        cout << "Error: could not determe how many channels are in the image" << endl;
+    }
+    cout << "Channels: " << naxis << endl;
 
     long naxes[3];
     ret = fits_get_img_size(fptr, naxis /*maxdim*/, naxes, &status);
-    cout << "size: naxes: " << naxes[0] << "x" << naxes[1] << "x" << naxes[2] << " ("<<ret<<")"<< endl;
+    if (ret != 0) {
+        cout << "Error: could not determe how many channels are in the image" << endl;
+    }
+    cout << "Size: " << naxes[0] << "x" << naxes[1] << "x" << naxes[2] << endl;
 
-    int size_x = 4272, size_y = 2848;
+    int size_x = naxes[0], size_y = naxes[1];
 
-    unsigned char *rarray = (unsigned char *)malloc(size_x*size_y); // TODO
-    unsigned char *garray = (unsigned char *)malloc(size_x*size_y); // TODO
-    unsigned char *barray = (unsigned char *)malloc(size_x*size_y); // TODO
+    if (naxes[2] != 3) {
+        cout<<"Error: only 3 channels images are supported, this one is "<<naxes<<endl;
+        fits_close_file(fptr, &status);
+        exit(1);
+    }
+
+    unsigned char *rarray = (unsigned char *)malloc(size_x*size_y); // Red channel
+    unsigned char *garray = (unsigned char *)malloc(size_x*size_y); // Green channel
+    unsigned char *barray = (unsigned char *)malloc(size_x*size_y); // Blue channel
     long fpixel [3]; // Size: NAXIS
-    // fpixel0 goes from 1 to NAXIS1
-    // fpixel1 goes from 1 to NAXIS2
-    //long inc [] = {2, 1, 0};
-    //long lpixel [] = {100, 100};
+    // fpixel[0] goes from 1 to NAXIS1
+    // fpixel[1] goes from 1 to NAXIS2
     int anynul;
-    //fits_read_pix
     fpixel[0] = fpixel[1] = 1;
     fpixel[2] = 1;
     ret = ffgpxv(fptr, TBYTE, fpixel, 
                   size_x*size_y, NULL, rarray, 
                   &anynul, &status);
-    cout<< "rarray[0] " << (int)rarray[0] <<endl;
-    cout<< "rarray[100x100] " << (int)rarray[100*100] <<endl;
     fpixel[0] = fpixel[1] = 1;
     fpixel[2] = 2;
     ret = ffgpxv(fptr, TBYTE, fpixel, 
                   size_x*size_y, NULL, garray, 
                   &anynul, &status);
-    cout<< "garray[0] " << (int)garray[0] <<endl;
-    cout<< "garray[100x100] " << (int)garray[100*100] <<endl;
     fpixel[0] = fpixel[1] = 1;
     fpixel[2] = 3;
     ret = ffgpxv(fptr, TBYTE, fpixel, 
                   size_x*size_y, NULL, barray, 
                   &anynul, &status);
-    cout<< "barray[0] " << (int)barray[0] <<endl;
-    cout<< "barray[100x100] " << (int)barray[100*100] <<endl;
 
     
-    // TODO: create opencv image
     Mat img(size_x /*x*/,size_y /*y*/, CV_8UC3 /*Assuming naxes[2] == 3*/, Scalar(0,0,0));
     
-    
-    // Accessing the pixel buffer, assuming it is 8 bits
     uint8_t* pixelPtr = (uint8_t*)img.data;
     int cn = img.channels();
     Scalar_<uint8_t> bgrPixel;
 
+    unsigned long long int count = 0;
+    for (int i = 0; i < size_x*size_y; i++) {
+        count += rarray[i];
+    }
+    float avg = count / ((float)size_x*size_y);
+
     for(int j = 0; j < img.cols; j++)
     {
         for(int i = 0; i < img.rows; i++)
-        {
-            //bgrPixel.val[0] = pixelPtr[i*img.cols*cn + j*cn + 0]; // B
-            //bgrPixel.val[1] = pixelPtr[i*img.cols*cn + j*cn + 1]; // G
-            //bgrPixel.val[2] = pixelPtr[i*img.cols*cn + j*cn + 2]; // R
-            pixelPtr[i*img.cols*cn + j*cn + 0] = barray[j*img.rows + i];
-            pixelPtr[i*img.cols*cn + j*cn + 1] = garray[j*img.rows + i];
-            pixelPtr[i*img.cols*cn + j*cn + 2] = rarray[j*img.rows + i];
+        {   
+            pixelPtr[i*img.cols*cn + j*cn + 0] = 10/avg * barray[j*img.rows + i];
+            pixelPtr[i*img.cols*cn + j*cn + 1] = 10/avg * garray[j*img.rows + i];
+            pixelPtr[i*img.cols*cn + j*cn + 2] = 10/avg * rarray[j*img.rows + i];
             
         }
     }
@@ -98,48 +107,18 @@ int main(int argc, char *argv[])
     free(garray);
     free(barray);
     fits_close_file(fptr, &status);
-
-
-    String windowName = "FIT viewer"; //Name of the window
-    namedWindow(windowName); // Create a window
-    imshow(windowName, img); // Show our image inside the created window.
-    waitKey(0); // Wait for any keystroke in the window
-    destroyWindow(windowName); //destroy the created window
-
-
-    //ReleaseImage(&img);
-
-
-
-
-
-
-
-
     
+    cv::resize(img, img, cv::Size(img.cols * 0.25,img.rows * 0.25), 0, 0);
+    String windowName = "FIT viewer";
+    namedWindow(windowName);
+    imshow(windowName, img);
+    //resizeWindow(windowName, 800, 600);
+    waitKey(0);
+    //destroyWindow(windowName); // Already done automatically
+    //ReleaseImage(&img); // TODO: clean up memory
 
-    if (status) /* print any error messages */
+
+    if (status)
         fits_report_error(stderr, status);
     return (status);
 }
-
-/*
-int main(int argc, char** argv)
-{
-    // Read the image file
-    // 16bits: IMREAD_ANYCOLOR | IMREAD_ANYDEPTH
-    Mat image = imread("/home/phileas/projects/indi_experiments/star_plotter/data/test30_1.fits", IMREAD_UNCHANGED);
-    // Check for failure
-    if (image.empty()) 
-    {
-        cout << "Could not open or find the image" << endl;
-        //cin.get(); //wait for any key press
-        return -1;
-    }
-    String windowName = "FIT viewer"; //Name of the window
-    namedWindow(windowName); // Create a window
-    imshow(windowName, image); // Show our image inside the created window.
-    waitKey(0); // Wait for any keystroke in the window
-    destroyWindow(windowName); //destroy the created window
-    return 0;
-}*/
