@@ -173,7 +173,7 @@ void eq_gotospeed(unsigned long period) {
 // 1tr per 10min = 21'583 us_per_step = 674 us_per_ustep
 // 1tr per 23 h 56 min 4,09 s = 3'099'428 us_per_step = 96'857 us_per_ustep 
 //#define TR_MIN_TO_DELAY(X) 1000000.0/(200.0*139.0*X/60.0)
-#define TR_MIN_TO_DELAY(X) 1000000.0/(200.0*3.7*32*X/60.0) // 1:3.7 gearbox, x32 microstepping
+#define TR_MIN_TO_DELAY(X) 1000000.0/(200.0*3.71*32*X/60.0) // 1:3.7 gearbox, x32 microstepping
 
 // Stop motor and wait for it to stop (blocking)
 void eq_stop_sync() {
