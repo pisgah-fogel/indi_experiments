@@ -1,0 +1,5 @@
+sudo apt install libopencv-dev
+sudo ln -s /usr/include/opencv4/opencv2 /usr/include/opencv2
+
+echo "Installing high performance library for FITS manipulations"
+sudo apt install libcfitsio-dev
