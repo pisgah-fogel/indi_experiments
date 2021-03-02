@@ -5,4 +5,5 @@
 **/build
 **/*.FCStd1
 **/data/
-**/app*
+**/app
+**/fitsviewer

@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
     }
     cout << "Size: " << naxes[0] << "x" << naxes[1] << "x" << naxes[2] << endl;
 
-    int size_x = naxes[0], size_y = naxes[1];
+    int size_x = naxes[1], size_y = naxes[0];
 
     if (naxes[2] != 3) {
         cout<<"Error: only 3 channels images are supported, this one is "<<naxes<<endl;
@@ -101,9 +101,18 @@ int main(int argc, char *argv[])
     {
         for(int i = 0; i < img.rows; i++)
         {   
-            pixelPtr[i*img.cols*cn + j*cn + 0] = 10/avg * barray[j*img.rows + i];
-            pixelPtr[i*img.cols*cn + j*cn + 1] = 10/avg * garray[j*img.rows + i];
-            pixelPtr[i*img.cols*cn + j*cn + 2] = 10/avg * rarray[j*img.rows + i];
+            float r = 16/avg * rarray[i*img.cols + j];
+            float g = 16/avg * garray[i*img.cols + j];
+            float b = 16/avg * barray[i*img.cols + j];
+            if (r > 255)
+                r = 255;
+            if (g > 255)
+                r = 255;
+            if (b > 255)
+                r = 255;
+            pixelPtr[i*img.cols*cn + j*cn + 0] = b;
+            pixelPtr[i*img.cols*cn + j*cn + 1] = g;
+            pixelPtr[i*img.cols*cn + j*cn + 2] = r;
             
         }
     }
