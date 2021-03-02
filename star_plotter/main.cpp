@@ -1,129 +1,92 @@
 #include <opencv2/opencv.hpp>
+#include <opencv2/features2d.hpp>
 #include <iostream>
 
 #include <fitsio.h>
+#include "fits.hpp"
 
 using namespace cv;
-using namespace std;
+
+const int MAX_FEATURES = 500;
+const float GOOD_MATCH_PERCENT = 0.05f;
+
+// im2: reference image
+Point2f alignImages(Mat &im1, Mat &im2)
+{
+    // Convert images to grayscale
+    Mat im1Gray, im2Gray;
+    cvtColor(im1, im1Gray, cv::COLOR_BGR2GRAY);
+    cvtColor(im2, im2Gray, cv::COLOR_BGR2GRAY);
+
+    // Variables to store keypoints and descriptors
+    std::vector<KeyPoint> keypoints1, keypoints2;
+    Mat descriptors1, descriptors2;
+
+    // Detect ORB features and compute descriptors.
+    Ptr<Feature2D> orb = ORB::create(MAX_FEATURES);
+    orb->detectAndCompute(im1Gray, Mat(), keypoints1, descriptors1);
+    orb->detectAndCompute(im2Gray, Mat(), keypoints2, descriptors2);
+
+    // Match features.
+    std::vector<DMatch> matches;
+    // BruteForce-Hamming does not work well
+    Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create("BruteForce");
+    matcher->match(descriptors1, descriptors2, matches, Mat());
+
+    // Sort matches by score
+    std::sort(matches.begin(), matches.end());
+
+    // Remove not so good matches
+    const int numGoodMatches = matches.size() * GOOD_MATCH_PERCENT;
+    matches.erase(matches.begin() + numGoodMatches, matches.end());
+
+    // Draw top matches
+    Mat imMatches;
+    drawMatches(im1, keypoints1, im2, keypoints2, matches, imMatches);
+    cv::resize(imMatches, imMatches, cv::Size(imMatches.cols * 0.25, imMatches.rows * 0.25), 0, 0);
+    //imwrite("matches.jpg", imMatches);
+    std::string windowName = "Matching";
+    cv::namedWindow(windowName);
+cv:
+    imshow(windowName, imMatches);
+    waitKey(0);
+
+    // Extract location of good matches
+    std::vector<Point2f> points1, points2;
+    float avg_dev_x = 0;
+    float avg_dev_y = 0;
+
+    for (size_t i = 0; i < matches.size(); i++)
+    {
+        Point2f a = keypoints1[matches[i].queryIdx].pt;
+        Point2f b = keypoints2[matches[i].trainIdx].pt;
+        points1.push_back(a);
+        points2.push_back(b);
+        avg_dev_x += a.x - b.x;
+        avg_dev_y += a.y - b.y;
+    }
+    avg_dev_x /= (float)matches.size();
+    avg_dev_y /= (float)matches.size();
+    std::cout << " Average deviation " << avg_dev_x << " x " << avg_dev_y << std::endl;
+    // Find homography
+    //h = findHomography( points1, points2, RANSAC );
+
+    // Use homography to warp image
+    //warpPerspective(im1, im1Reg, h, im2.size());
+    return Point2f(avg_dev_x, avg_dev_y);
+}
 
 int main(int argc, char *argv[])
 {
-    fitsfile *fptr;
-    char card[FLEN_CARD];
-    int status = 0, nkeys, ii;
+    FitImage a, b;
 
-    if (argc != 2) {
-        cout << "Please provide a file to open" << endl;
-        return 0;
-    }
-
-    // Open the file
-    fits_open_file(&fptr, argv[1], READONLY, &status);
-    fits_get_hdrspace(fptr, &nkeys, NULL, &status);
-
-    // List every meta data
-    for (ii = 1; ii <= nkeys; ii++)
+    if (argc != 3)
     {
-        fits_read_record(fptr, ii, card, &status);
-        printf("%s\n", card);
+        std::cout << "Please provide 2 filenames" << std::endl;
+        return 1;
     }
-
-    // Read every pixel, stretch resize and display
-    int bitpix;
-    int ret = fits_get_img_type(fptr, &bitpix, &status);
-    cout << "Depth : " << bitpix << "bits" << endl;
-    if (ret != 0) {
-        cout << "Error: could not determine depth" << endl;
-    }
-    if (bitpix != 8) {
-        cout << "Warning: Only 8 bits images have been tested" << endl;
-    }
-
-    int naxis;
-    ret = fits_get_img_dim(fptr, &naxis, &status);
-    if (ret != 0) {
-        cout << "Error: could not determe how many channels are in the image" << endl;
-    }
-    cout << "Channels: " << naxis << endl;
-
-    long naxes[3];
-    ret = fits_get_img_size(fptr, naxis /*maxdim*/, naxes, &status);
-    if (ret != 0) {
-        cout << "Error: could not determe how many channels are in the image" << endl;
-    }
-    cout << "Size: " << naxes[0] << "x" << naxes[1] << "x" << naxes[2] << endl;
-
-    int size_x = naxes[0], size_y = naxes[1];
-
-    if (naxes[2] != 3) {
-        cout<<"Error: only 3 channels images are supported, this one is "<<naxes<<endl;
-        fits_close_file(fptr, &status);
-        exit(1);
-    }
-
-    unsigned char *rarray = (unsigned char *)malloc(size_x*size_y); // Red channel
-    unsigned char *garray = (unsigned char *)malloc(size_x*size_y); // Green channel
-    unsigned char *barray = (unsigned char *)malloc(size_x*size_y); // Blue channel
-    long fpixel [3]; // Size: NAXIS
-    // fpixel[0] goes from 1 to NAXIS1
-    // fpixel[1] goes from 1 to NAXIS2
-    int anynul;
-    fpixel[0] = fpixel[1] = 1;
-    fpixel[2] = 1;
-    ret = ffgpxv(fptr, TBYTE, fpixel, 
-                  size_x*size_y, NULL, rarray, 
-                  &anynul, &status);
-    fpixel[0] = fpixel[1] = 1;
-    fpixel[2] = 2;
-    ret = ffgpxv(fptr, TBYTE, fpixel, 
-                  size_x*size_y, NULL, garray, 
-                  &anynul, &status);
-    fpixel[0] = fpixel[1] = 1;
-    fpixel[2] = 3;
-    ret = ffgpxv(fptr, TBYTE, fpixel, 
-                  size_x*size_y, NULL, barray, 
-                  &anynul, &status);
-
-    
-    Mat img(size_x /*x*/,size_y /*y*/, CV_8UC3 /*Assuming naxes[2] == 3*/, Scalar(0,0,0));
-    
-    uint8_t* pixelPtr = (uint8_t*)img.data;
-    int cn = img.channels();
-    Scalar_<uint8_t> bgrPixel;
-
-    unsigned long long int count = 0;
-    for (int i = 0; i < size_x*size_y; i++) {
-        count += rarray[i];
-    }
-    float avg = count / ((float)size_x*size_y);
-
-    for(int j = 0; j < img.cols; j++)
-    {
-        for(int i = 0; i < img.rows; i++)
-        {   
-            pixelPtr[i*img.cols*cn + j*cn + 0] = 10/avg * barray[j*img.rows + i];
-            pixelPtr[i*img.cols*cn + j*cn + 1] = 10/avg * garray[j*img.rows + i];
-            pixelPtr[i*img.cols*cn + j*cn + 2] = 10/avg * rarray[j*img.rows + i];
-            
-        }
-    }
-
-    free(rarray);
-    free(garray);
-    free(barray);
-    fits_close_file(fptr, &status);
-    
-    cv::resize(img, img, cv::Size(img.cols * 0.25,img.rows * 0.25), 0, 0);
-    String windowName = "FIT viewer";
-    namedWindow(windowName);
-    imshow(windowName, img);
-    //resizeWindow(windowName, 800, 600);
-    waitKey(0);
-    //destroyWindow(windowName); // Already done automatically
-    //ReleaseImage(&img); // TODO: clean up memory
-
-
-    if (status)
-        fits_report_error(stderr, status);
-    return (status);
+    a.open(argv[1]);
+    b.open(argv[2]);
+    alignImages(a.data, b.data);
+    return 0;
 }
