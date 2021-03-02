@@ -8,6 +8,9 @@
 
 #define MAX_STEPS 100 // Max "Size" of a star (in pixel)
 #define MIN_DISTANCE_BETWEEN_STARS 10
+#define PIXVAL_THRESHOLD 10 // number of time the average pixel value
+
+FitImage dbg_img;
 
 cv::Rect2f getStarBoundary(cv::Mat &grayimg, int x, int y, unsigned int thrld) {
     cv::Rect2f result;
@@ -98,7 +101,88 @@ cv::Rect2f getStarBoundary(cv::Mat &grayimg, int x, int y, unsigned int thrld) {
     return result;
 }
 
+float getImgAveragePixel(cv::Mat &grayimg) {
+    uint8_t* pixelPtr = (uint8_t*)grayimg.data;
+    unsigned long long int sum = 0;
+    for(int j = 0; j < grayimg.cols; j++)
+    {
+        for(int i = 0; i < grayimg.rows; i++)
+        {   
+            sum += pixelPtr[i*grayimg.cols + j]; // Gray only
+        }
+    }
+    return (float)sum/(float)(grayimg.cols*grayimg.rows);
+}
+
+void listStars(std::vector<cv::Rect>* out_boxes, std::vector<cv::Point2f>* out_centers, cv::Mat &grayimg, float threshold) {
+    uint8_t thrld = (uint8_t) threshold;
+    std::cout << "star threshold is "<<(unsigned int)thrld<<std::endl;
+    size_t single_pixel_star = 0;
+    uint8_t* pixelPtr = (uint8_t*)grayimg.data;
+    for(int j = 0; j < grayimg.cols; j++)
+    {
+        for(int i = 0; i < grayimg.rows; i++)
+        {   
+            if (pixelPtr[i*grayimg.cols + j] > thrld) {
+                //pixelPtr[i*grayimg.cols + j] = 255; // Debug
+
+                cv::Rect2f tmp = getStarBoundary(grayimg, j, i, thrld);
+
+                if (tmp.width == 0 && tmp.height == 0) {
+                    single_pixel_star ++;
+                    continue;
+                }
+
+                cv::Point2f center = cv::Point2f(tmp.x + tmp.width/2, tmp.y + tmp.height/2);
+
+                j += tmp.width + MIN_DISTANCE_BETWEEN_STARS;
+                i += tmp.height + MIN_DISTANCE_BETWEEN_STARS;
+
+                if (out_boxes != NULL)
+                    out_boxes->push_back(tmp);
+                if (out_centers != NULL)
+                    out_centers->push_back(center);
+            }
+        }
+    }
+    if (out_boxes != NULL)
+    std::cout<<out_boxes->size()<<" stars detected"<<std::endl;
+
+    std::cout<<"Skipped single pixel star "<<single_pixel_star<<std::endl;
+}
+
+std::vector<cv::Point2f> matchStarsBruteForce(std::vector<cv::Point2f>* point1, std::vector<cv::Point2f>* pointref) {
+    std::vector<cv::Point2f> movement_vector;
+
+    
+    for (std::vector<cv::Point2f>::iterator it = point1->begin(); it != point1->end(); it++) {
+        float smallest_distance = 10000000;
+        cv::Point2f* best_match;
+        for (std::vector<cv::Point2f>::iterator it2 = pointref->begin(); it2 != pointref->end(); it2++) {
+            float distance = (it->x - it2->x) * (it->x - it2->x) + (it->y - it2->y) * (it->y - it2->y);
+            if (distance < smallest_distance) {
+                best_match = (cv::Point2f*)&(*it2);
+                smallest_distance = distance;
+            }
+        }
+        if (smallest_distance < 10000000) {
+            movement_vector.push_back(cv::Point2f(best_match->x - it->x, best_match->y - it->y));
+            cv::circle(dbg_img.data, *it, 10, cv::Scalar(255, 0, 0), 5); // BGR
+            cv::circle(dbg_img.data, *best_match, 10, cv::Scalar(0, 0, 255), 5);
+            cv::line(dbg_img.data, *it, *best_match, cv::Scalar(0, 255, 0), 5);
+        }
+    }
+
+    std::cout<<"Failed to match: "<<point1->size() - movement_vector.size()<< "stars" <<std::endl;
+
+    return movement_vector;
+}
+
 cv::Point2f detectStars(FitImage &im1, FitImage &im2) {
+    im1.data.copyTo(dbg_img.data);
+    //dbg_img.create(im1.data.cols, im1.data.rows); // For blank debug
+    dbg_img.contrast(30); // High streching
+
     cv::Mat im1Gray, im2Gray;
     cvtColor(im1.data, im1Gray, cv::COLOR_BGR2GRAY);
     cvtColor(im2.data, im2Gray, cv::COLOR_BGR2GRAY);
@@ -106,61 +190,56 @@ cv::Point2f detectStars(FitImage &im1, FitImage &im2) {
     std::vector<cv::Point2f> points1, points2;
 
     // Get average pixel value
-    uint8_t* pixelPtr = (uint8_t*)im1Gray.data;
-    unsigned long long int sum = 0;
-    for(int j = 0; j < im1Gray.cols; j++)
-    {
-        for(int i = 0; i < im1Gray.rows; i++)
-        {   
-            sum += pixelPtr[i*im1Gray.cols + j]; // Gray only
-        }
-    }
-    float avg = (float)sum/(float)(im1Gray.cols*im1Gray.rows);
+    float avg1 = getImgAveragePixel(im1Gray);
+    std::cout << "Average IMG1 is "<<avg1<<std::endl;
+
+    float avg2 = getImgAveragePixel(im2Gray);
+    std::cout << "Average IMG2 is "<<avg2<<std::endl;
 
     // Apply threshold and detect star's boundary when threshold is reached
-    uint8_t thrld = 10*avg;
-    unsigned int count = 0;
-    std::vector<cv::Rect> stars;
-    std::cout << "Average pixel value is "<<avg<<std::endl;
-    std::cout << "star threshold is "<<(unsigned int)thrld<<std::endl;
-    for(int j = 0; j < im1Gray.cols; j++)
-    {
-        for(int i = 0; i < im1Gray.rows; i++)
-        {   
-            if (pixelPtr[i*im1Gray.cols + j] > thrld) {
-                count++;
-                //pixelPtr[i*im1Gray.cols + j] = 255; // Debug
+    listStars(NULL, &points1, im1Gray, PIXVAL_THRESHOLD*avg1);
 
-                cv::Rect2f tmp = getStarBoundary(im1Gray, j, i, thrld);
+    listStars(NULL, &points2, im2Gray, PIXVAL_THRESHOLD*avg2);
 
-                j += tmp.width + MIN_DISTANCE_BETWEEN_STARS;
-                i += tmp.height + MIN_DISTANCE_BETWEEN_STARS;
+    std::vector<cv::Point2f> distances = matchStarsBruteForce(&points1, &points2);
 
-                stars.push_back(tmp);
-                // TODO: Save star position
-                // TODO plot
-            }
-        }
+    double sum_x = 0, sum_y = 0;
+    for (std::vector<cv::Point2f>::iterator it = distances.begin(); it != distances.end(); it++) {
+        sum_x += it->x;
+        sum_y += it->y;
     }
-    std::cout<<count<<" pixels above threshold"<<std::endl;
-    std::cout<<stars.size()<<" stars detected"<<std::endl;
+    float avg_x = (float)sum_x / (float)distances.size();
+    float avg_y = (float)sum_y / (float)distances.size();
+    std::cout<<"Average before filtering x:"<<avg_x<<" y:"<<avg_y<<std::endl;
 
-    // Debugging threshold
-    //cv:imshow("threshold",im1Gray);
-    //cv::waitKey(0);
+    // Filtering
+    sum_x = 0, sum_y = 0;
+    const float skip_threshold = 15.f;
+    int skipped = 0;
+    for (std::vector<cv::Point2f>::iterator it = distances.begin(); it != distances.end(); it++) {
+        std::cout<<"Vector x:"<<it->x<<" y:"<<it->y<<std::endl;
+        if (abs(it->x - avg_x) > skip_threshold) {
+            std::cout<<"x too high/low"<<std::endl;
+            skipped++;
+            continue;
+        }
+        else if (abs(it->y - avg_y) > skip_threshold) {
+            std::cout<<"y too high/low"<<std::endl;
+            skipped++;
+            continue;
+        }
+        sum_x += it->x;
+        sum_y += it->y;
+    }
+    avg_x = (float)sum_x / (float)distances.size();
+    avg_y = (float)sum_y / (float)distances.size();
+    std::cout<<"Average x:"<<avg_x<<" y:"<<avg_y<<std::endl;
 
-    //Debug star gazing
-    cv::Mat debugimg;
-    im1Gray.copyTo(debugimg);
-    for (std::vector<cv::Rect>::iterator it = stars.begin(); it != stars.end(); it++)
-        cv::rectangle(debugimg,*it, cv::Scalar(255));
-    cv::namedWindow("stars",cv::WindowFlags::WINDOW_NORMAL);
-    cv::imshow("stars",debugimg);
-    cv::resizeWindow("stars", 600,800);
+    std::cout<<skipped<<"/" << distances.size() << "vectors skipped"<<std::endl;
+
+    cv::namedWindow("debug",cv::WindowFlags::WINDOW_NORMAL);
+    cv::imshow("debug",dbg_img.data);
+    cv::resizeWindow("debug", 1000,1000);
     cv::waitKey(0);
-
-    // TODO get star center
-
-    // TODO draw circles
-
+    return cv::Point2f(0.0, 0.0); // TODO: return something usefull
 }

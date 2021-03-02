@@ -45,6 +45,9 @@ class FitImage
             }
         }
     }
+    void create(unsigned int width, unsigned int height) {
+        data = cv::Mat(width,height,CV_8UC3, cv::Scalar(0,0,0));
+    }
     bool open(std::string filename) {
         fitsfile *fptr;
         char card[FLEN_CARD];
