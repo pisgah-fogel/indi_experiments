@@ -11,12 +11,39 @@ class FitImage
         avg_pix = 0;
     }
     void display() {
-        cv::Mat tmp;
-        cv::resize(data, tmp, cv::Size(data.cols * 0.25,data.rows * 0.25), 0, 0);
+
+        //cv::Mat tmp;
+        //cv::resize(data, tmp, cv::Size(data.cols * 0.25,data.rows * 0.25), 0, 0);
         std::string windowName = "FIT viewer";
-        cv::namedWindow(windowName);
-        cv:imshow(windowName, tmp);
+        cv::namedWindow(windowName,cv::WindowFlags::WINDOW_NORMAL);
+        cv:imshow(windowName, data);
+        cv::resizeWindow(windowName, 600,600);
         cv::waitKey(0); // TODO: add an option
+    }
+    void contrast(float coef=20) {
+        uint8_t* pixelPtr = (uint8_t*)data.data;
+        int cn = data.channels();
+
+        unsigned long long int reg_sum = 0;
+        for(int j = 0; j < data.cols; j++)
+        {
+            for(int i = 0; i < data.rows; i++)
+            {   
+                reg_sum += pixelPtr[i*data.cols*cn + j*cn + 2];
+            }
+        }
+        float reg_avg = (float)reg_sum / (float)(data.cols*data.rows);
+
+        for(int j = 0; j < data.cols; j++)
+        {
+            for(int i = 0; i < data.rows; i++)
+            {   
+                pixelPtr[i*data.cols*cn + j*cn + 0] = (uint8_t) ((float)pixelPtr[i*data.cols*cn + j*cn + 0]*coef/reg_avg);
+                pixelPtr[i*data.cols*cn + j*cn + 1] = (uint8_t) ((float)pixelPtr[i*data.cols*cn + j*cn + 1]*coef/reg_avg);
+                pixelPtr[i*data.cols*cn + j*cn + 2] = (uint8_t) ((float)pixelPtr[i*data.cols*cn + j*cn + 2]*coef/reg_avg);
+                
+            }
+        }
     }
     bool open(std::string filename) {
         fitsfile *fptr;
@@ -111,22 +138,14 @@ class FitImage
         
         uint8_t* pixelPtr = (uint8_t*)data.data;
         int cn = data.channels();
-        cv::Scalar_<uint8_t> bgrPixel;
-
-        unsigned long long int count = 0;
-        for (int i = 0; i < size_x*size_y; i++) {
-            count += rarray[i];
-        }
-        float avg = count / ((float)size_x*size_y);
-        avg_pix = avg;
 
         for(int j = 0; j < data.cols; j++)
         {
             for(int i = 0; i < data.rows; i++)
             {   
-                pixelPtr[i*data.cols*cn + j*cn + 0] = 10/avg * barray[j*data.rows + i];
-                pixelPtr[i*data.cols*cn + j*cn + 1] = 10/avg * garray[j*data.rows + i];
-                pixelPtr[i*data.cols*cn + j*cn + 2] = 10/avg * rarray[j*data.rows + i];
+                pixelPtr[i*data.cols*cn + j*cn + 0] = barray[j*data.rows + i];
+                pixelPtr[i*data.cols*cn + j*cn + 1] = garray[j*data.rows + i];
+                pixelPtr[i*data.cols*cn + j*cn + 2] = rarray[j*data.rows + i];
                 
             }
         }
