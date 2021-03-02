@@ -1,8 +1,9 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/features2d.hpp>
 #include <iostream>
-
 #include <fitsio.h>
+
+#include "StarDetector.hpp"
 #include "fits.hpp"
 
 using namespace cv;
@@ -24,6 +25,7 @@ Point2f alignImages(Mat &im1, Mat &im2)
 
     // Detect ORB features and compute descriptors.
     Ptr<Feature2D> orb = ORB::create(MAX_FEATURES);
+    //auto orb = xfeatures2d::StarDetector::create(MAX_FEATURES);
     orb->detectAndCompute(im1Gray, Mat(), keypoints1, descriptors1);
     orb->detectAndCompute(im2Gray, Mat(), keypoints2, descriptors2);
 
@@ -87,6 +89,6 @@ int main(int argc, char *argv[])
     }
     a.open(argv[1]);
     b.open(argv[2]);
-    alignImages(a.data, b.data);
+    detectStars(a, b);
     return 0;
 }

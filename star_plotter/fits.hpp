@@ -3,11 +3,13 @@
 #include <chrono>
 #include <fitsio.h>
 #include <opencv2/opencv.hpp>
-#include <opencv2/features2d.hpp>
 
 class FitImage
 {
     public:
+    FitImage() {
+        avg_pix = 0;
+    }
     void display() {
         cv::Mat tmp;
         cv::resize(data, tmp, cv::Size(data.cols * 0.25,data.rows * 0.25), 0, 0);
@@ -116,6 +118,7 @@ class FitImage
             count += rarray[i];
         }
         float avg = count / ((float)size_x*size_y);
+        avg_pix = avg;
 
         for(int j = 0; j < data.cols; j++)
         {
@@ -136,4 +139,5 @@ class FitImage
     }
     cv::Mat data;
     private:
+    float avg_pix;
 };
