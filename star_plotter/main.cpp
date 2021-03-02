@@ -89,6 +89,6 @@ int main(int argc, char *argv[])
     }
     a.open(argv[1]);
     b.open(argv[2]);
-    detectStars(a, b);
+    detectMotion(a, b);
     return 0;
 }

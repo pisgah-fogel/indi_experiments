@@ -7,6 +7,22 @@
 class FitImage
 {
     public:
+    void sumWith(FitImage* otherimage) {
+        uint8_t* pixelPtr1 = (uint8_t*)data.data;
+        int cn = data.channels();
+        uint8_t* pixelPtr2 = (uint8_t*)otherimage->data.data;
+
+        for(int j = 0; j < data.cols; j++)
+        {
+            for(int i = 0; i < data.rows; i++)
+            {   
+                pixelPtr1[i*data.cols*cn + j*cn + 0] += pixelPtr2[i*data.cols*cn + j*cn + 0];
+                pixelPtr1[i*data.cols*cn + j*cn + 1] += pixelPtr2[i*data.cols*cn + j*cn + 1];
+                pixelPtr1[i*data.cols*cn + j*cn + 2] += pixelPtr2[i*data.cols*cn + j*cn + 2];
+                
+            }
+        }
+    }
     FitImage() {
         avg_pix = 0;
     }

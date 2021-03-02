@@ -12,6 +12,18 @@
 
 FitImage dbg_img;
 
+class Feature {
+    public:
+    cv::Point2f origin;
+    cv::Point2f destination;
+    cv::Point2f vector;
+    void display(FitImage* img) {
+        cv::circle(img->data, origin, 10, cv::Scalar(255, 0, 0), 5); // BGR
+        cv::circle(dbg_img.data, destination, 10, cv::Scalar(255, 0, 127), 5);
+        cv::line(dbg_img.data, origin, destination, cv::Scalar(0, 0, 255), 5);
+    }
+};
+
 cv::Rect2f getStarBoundary(cv::Mat &grayimg, int x, int y, unsigned int thrld) {
     cv::Rect2f result;
     uint8_t* pixelPtr = (uint8_t*)grayimg.data;
@@ -151,8 +163,8 @@ void listStars(std::vector<cv::Rect>* out_boxes, std::vector<cv::Point2f>* out_c
     std::cout<<"Skipped single pixel star "<<single_pixel_star<<std::endl;
 }
 
-std::vector<cv::Point2f> matchStarsBruteForce(std::vector<cv::Point2f>* point1, std::vector<cv::Point2f>* pointref) {
-    std::vector<cv::Point2f> movement_vector;
+std::vector<Feature> matchStarsBruteForce(std::vector<cv::Point2f>* point1, std::vector<cv::Point2f>* pointref) {
+    std::vector<Feature> movement_vector;
 
     
     for (std::vector<cv::Point2f>::iterator it = point1->begin(); it != point1->end(); it++) {
@@ -166,10 +178,11 @@ std::vector<cv::Point2f> matchStarsBruteForce(std::vector<cv::Point2f>* point1, 
             }
         }
         if (smallest_distance < 10000000) {
-            movement_vector.push_back(cv::Point2f(best_match->x - it->x, best_match->y - it->y));
-            cv::circle(dbg_img.data, *it, 10, cv::Scalar(255, 0, 0), 5); // BGR
-            cv::circle(dbg_img.data, *best_match, 10, cv::Scalar(0, 0, 255), 5);
-            cv::line(dbg_img.data, *it, *best_match, cv::Scalar(0, 255, 0), 5);
+            Feature tmp;
+            tmp.origin = *it;
+            tmp.destination = *best_match;
+            tmp.vector = cv::Point2f(best_match->x - it->x, best_match->y - it->y);
+            movement_vector.push_back(tmp);
         }
     }
 
@@ -178,8 +191,11 @@ std::vector<cv::Point2f> matchStarsBruteForce(std::vector<cv::Point2f>* point1, 
     return movement_vector;
 }
 
-cv::Point2f detectStars(FitImage &im1, FitImage &im2) {
+cv::Point2f detectMotion(FitImage &im1, FitImage &im2) {
     im1.data.copyTo(dbg_img.data);
+
+    dbg_img.sumWith(&im2);
+
     //dbg_img.create(im1.data.cols, im1.data.rows); // For blank debug
     dbg_img.contrast(30); // High streching
 
@@ -201,45 +217,48 @@ cv::Point2f detectStars(FitImage &im1, FitImage &im2) {
 
     listStars(NULL, &points2, im2Gray, PIXVAL_THRESHOLD*avg2);
 
-    std::vector<cv::Point2f> distances = matchStarsBruteForce(&points1, &points2);
+    std::vector<Feature> features = matchStarsBruteForce(&points1, &points2);
 
     double sum_x = 0, sum_y = 0;
-    for (std::vector<cv::Point2f>::iterator it = distances.begin(); it != distances.end(); it++) {
-        sum_x += it->x;
-        sum_y += it->y;
+    for (std::vector<Feature>::iterator it = features.begin(); it != features.end(); it++) {
+        sum_x += it->vector.x;
+        sum_y += it->vector.y;
     }
-    float avg_x = (float)sum_x / (float)distances.size();
-    float avg_y = (float)sum_y / (float)distances.size();
+    float avg_x = (float)sum_x / (float)features.size();
+    float avg_y = (float)sum_y / (float)features.size();
     std::cout<<"Average before filtering x:"<<avg_x<<" y:"<<avg_y<<std::endl;
 
     // Filtering
     sum_x = 0, sum_y = 0;
     const float skip_threshold = 15.f;
     int skipped = 0;
-    for (std::vector<cv::Point2f>::iterator it = distances.begin(); it != distances.end(); it++) {
-        std::cout<<"Vector x:"<<it->x<<" y:"<<it->y<<std::endl;
-        if (abs(it->x - avg_x) > skip_threshold) {
+    for (std::vector<Feature>::iterator it = features.begin(); it != features.end(); it++) {
+        std::cout<<"Vector x:"<<it->vector.x<<" y:"<<it->vector.y<<std::endl;
+        if (abs(it->vector.x - avg_x) > skip_threshold) {
             std::cout<<"x too high/low"<<std::endl;
             skipped++;
             continue;
         }
-        else if (abs(it->y - avg_y) > skip_threshold) {
+        else if (abs(it->vector.y - avg_y) > skip_threshold) {
             std::cout<<"y too high/low"<<std::endl;
             skipped++;
             continue;
         }
-        sum_x += it->x;
-        sum_y += it->y;
+        it->display(&dbg_img);
+        sum_x += it->vector.x;
+        sum_y += it->vector.y;
     }
-    avg_x = (float)sum_x / (float)distances.size();
-    avg_y = (float)sum_y / (float)distances.size();
+    avg_x = (float)sum_x / (float)features.size();
+    avg_y = (float)sum_y / (float)features.size();
     std::cout<<"Average x:"<<avg_x<<" y:"<<avg_y<<std::endl;
 
-    std::cout<<skipped<<"/" << distances.size() << "vectors skipped"<<std::endl;
+    std::cout<<skipped<<"/" << features.size() << "vectors skipped"<<std::endl;
+
+    cv::line(dbg_img.data, cv::Point(100, 100), cv::Point(100+avg_x, 100+avg_y), cv::Scalar(255, 255, 0), 5);
 
     cv::namedWindow("debug",cv::WindowFlags::WINDOW_NORMAL);
     cv::imshow("debug",dbg_img.data);
     cv::resizeWindow("debug", 1000,1000);
     cv::waitKey(0);
-    return cv::Point2f(0.0, 0.0); // TODO: return something usefull
+    return cv::Point2f(avg_x, avg_y); // TODO: return something usefull
 }
