@@ -7,6 +7,10 @@
 #include <QStandardPaths>
 #include <QPainter>
 
+#define PIXVAL_THRESHOLD 10 // number of time the average pixel value
+#define MIN_DISTANCE_BETWEEN_STARS 10
+#define MAX_STEPS 100 // Max "Size" of a star (in pixel)
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -34,6 +38,10 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 void MainWindow::RawToQImage(RawImage* raw, QImage* qimage) {
+    if (raw->red == NULL || raw->blue == NULL || raw->green == NULL) {
+        std::cout<<"Error: MainWindow::RawToQImage: Raw image is empty"<<std::endl;
+        return;
+    }
     *qimage = QPixmap(raw->width, raw->height).toImage();
 
     for(size_t x(0); x < raw->width; x++) {
@@ -206,6 +214,202 @@ void MainWindow::createActions() {
     QAction *compareAct = fileMenu->addAction(tr("&Compare with..."), this, &MainWindow::callback_openFile_compare);
 }
 
+float getImgAveragePixel(RawImage* rawimg) {
+    unsigned long long int sum = 0;
+    for(size_t x(0); x < rawimg->width; x++) {
+        for(size_t y (0); y < rawimg->height; y++) {
+            sum += rawimg->bw[y*rawimg->width + x];
+        }
+    }
+    // TODO: store average value so I do not calculate it each time ?
+    return (float)sum/(float)(rawimg->width*rawimg->height);
+}
+
+Rectf getStarBoundary(RawImage &rawimg, int x, int y, unsigned int thrld) {
+    Rectf result;
+
+    // TODO: check tmpx < width >= 0 (+ same for tmpy)
+    // Find top (y small)
+    int tmpx = x, tmpy = y;
+    for (size_t steps = 0; steps < MAX_STEPS; steps ++) {
+        if (tmpx < 1)
+            break;
+        else if ((size_t)tmpx + 1 >= rawimg.width)
+            break;
+        if (tmpy < 1)
+            break;
+        else if ((size_t)tmpy + 1 >= rawimg.height)
+            break;
+        if (rawimg.bw[(tmpy-1)*rawimg.width + tmpx] > thrld) {
+            tmpy -= 1;
+        }
+        else if (rawimg.bw[(tmpy-1)*rawimg.width + tmpx-1] > thrld) {
+            tmpy -= 1;
+            tmpx -= 1;
+        }
+        else if (rawimg.bw[(tmpy-1)*rawimg.width + tmpx+1] > thrld) {
+            tmpy -= 1;
+            tmpx += 1;
+        }
+        else
+            break;
+    }
+    result.y = tmpy;
+
+    tmpx = x;
+    tmpy = y;
+    // Find bottom (y big)
+    for (size_t steps = 0; steps < MAX_STEPS; steps ++) {
+        if (tmpx < 1)
+            break;
+        else if ((size_t)tmpx + 1 >= rawimg.width)
+            break;
+        if (tmpy < 1)
+            break;
+        else if ((size_t)tmpy + 1 >= rawimg.height)
+            break;
+        if (rawimg.bw[(tmpy+1)*rawimg.width + tmpx] > thrld) {
+            tmpy += 1;
+        }
+        else if (rawimg.bw[(tmpy+1)*rawimg.width + tmpx-1] > thrld) {
+            tmpy += 1;
+            tmpx -= 1;
+        }
+        else if (rawimg.bw[(tmpy+1)*rawimg.width + tmpx+1] > thrld) {
+            tmpy += 1;
+            tmpx += 1;
+        }
+        else
+            break;
+    }
+    result.h = tmpy - result.y;
+
+    tmpx = x;
+    tmpy = y;
+    // Find left (x small)
+    for (size_t steps = 0; steps < MAX_STEPS; steps ++) {
+        if (tmpx < 1)
+            break;
+        else if ((size_t)tmpx + 1 >= rawimg.width)
+            break;
+        if (tmpy < 1)
+            break;
+        else if ((size_t)tmpy + 1 >= rawimg.height)
+            break;
+
+        if (rawimg.bw[(tmpy)*rawimg.width + tmpx-1] > thrld) {
+            tmpx -= 1;
+        }
+        else if (rawimg.bw[(tmpy-1)*rawimg.width + tmpx-1] > thrld) {
+            tmpx -= 1;
+            tmpy -= 1;
+        }
+        else if (rawimg.bw[(tmpy+1)*rawimg.width + tmpx-1] > thrld) {
+            tmpx -= 1;
+            tmpy += 1;
+        }
+        else
+            break;
+    }
+    result.x = tmpx;
+
+    tmpx = x;
+    tmpy = y;
+    // Find right (x big)
+    for (size_t steps = 0; steps < MAX_STEPS; steps ++) {
+        if (tmpx < 1)
+            break;
+        else if ((size_t)tmpx + 1 >= rawimg.width)
+            break;
+        if (tmpy < 1)
+            break;
+        else if ((size_t)tmpy + 1 >= rawimg.height)
+            break;
+
+        if (rawimg.bw[(tmpy)*rawimg.width + tmpx+1] > thrld) {
+            tmpx += 1;
+        }
+        else if (rawimg.bw[(tmpy-1)*rawimg.width + tmpx+1] > thrld) {
+            tmpx += 1;
+            tmpy -= 1;
+        }
+        else if (rawimg.bw[(tmpy+1)*rawimg.width + tmpx+1] > thrld) {
+            tmpx += 1;
+            tmpy += 1;
+        }
+        else
+            break;
+    }
+    result.w = tmpx - result.x;
+
+    std::cout<<"Star x:"<<result.x<<" y:"<<result.y<<" w"<<result.w<<" h"<<result.h<<std::endl;
+
+    return result;
+}
+
+void listStars(std::vector<Rectf>* out_boxes, std::vector<Point2f>* out_centers,
+               RawImage &grayimg, float threshold)
+{
+    uint8_t thrld = (uint8_t) threshold;
+    std::cout << "Star threshold is "<<(unsigned int)thrld<<std::endl;
+    size_t single_pixel_star = 0;
+    for(size_t x(0); x < grayimg.width; x++) {
+        for(size_t y (0); y < grayimg.height; y++) {
+            if (grayimg.bw[y*grayimg.width + x] > thrld) {
+                Rectf tmp = getStarBoundary(grayimg, x, y, thrld);
+
+                if (tmp.w == 0 && tmp.h == 0) {
+                    single_pixel_star ++;
+                    continue;
+                }
+
+                Point2f center = Point2f(tmp.x + tmp.w/2, tmp.y + tmp.h/2);
+
+                x += tmp.w + MIN_DISTANCE_BETWEEN_STARS;
+                y += tmp.h + MIN_DISTANCE_BETWEEN_STARS;
+
+                if (out_boxes != NULL)
+                    out_boxes->push_back(tmp);
+                if (out_centers != NULL)
+                    out_centers->push_back(center);
+            }
+        }
+    }
+
+    if (out_boxes != NULL)
+    std::cout<<out_boxes->size()<<" stars detected"<<std::endl;
+    else if (out_centers != NULL)
+    std::cout<<out_centers->size()<<" stars detected"<<std::endl;
+
+    std::cout<<"Skipped single pixel star "<<single_pixel_star<<std::endl;
+}
+
+std::vector<Feature> matchStarsBruteForce(std::vector<Point2f>* point1, std::vector<Point2f>* pointref) {
+    std::vector<Feature> movement_vector;
+    for (std::vector<Point2f>::iterator it = point1->begin(); it != point1->end(); it++) {
+        float smallest_distance = 10000000;
+        Point2f* best_match;
+        for (std::vector<Point2f>::iterator it2 = pointref->begin(); it2 != pointref->end(); it2++) {
+            float distance = (it->x - it2->x) * (it->x - it2->x) + (it->y - it2->y) * (it->y - it2->y);
+            if (distance < smallest_distance) {
+                best_match = (Point2f*)&(*it2);
+                smallest_distance = distance;
+            }
+        }
+        if (smallest_distance < 10000000) {
+            Feature tmp;
+            tmp.origin = *it;
+            tmp.destination = *best_match;
+            tmp.vector = Point2f(best_match->x - it->x, best_match->y - it->y);
+            movement_vector.push_back(tmp);
+        }
+    }
+
+    std::cout<<"Failed to match: "<<point1->size() - movement_vector.size()<< "stars" <<std::endl;
+
+    return movement_vector;
+}
+
 void MainWindow::callback_openFile_compare() {
     QFileDialog dialog(this, tr("Open File"));
     static bool firstDialog = true;
@@ -228,8 +432,60 @@ void MainWindow::callback_openFile_compare() {
 
     stackImageWithNewImage();
 
-    // TODO: detect features
-    // TODO: Draw Debug
+    // Detect features, Measure star's movement between images
+    std::vector<Point2f> points1, points2;
+    float avg1 = getImgAveragePixel(&image_a);
+    std::cout << "Average IMGA is "<<avg1<<std::endl;
+
+    float avg2 = getImgAveragePixel(&image_b);
+    std::cout << "Average IMGB is "<<avg2<<std::endl;
+
+    // Apply threshold and detect star's boundary when threshold is reached
+    listStars(NULL, &points1, image_a, PIXVAL_THRESHOLD*avg1);
+
+    listStars(NULL, &points2, image_b, PIXVAL_THRESHOLD*avg2);
+
+    mFeatures = matchStarsBruteForce(&points1, &points2);
+
+    double sum_x = 0, sum_y = 0;
+    for (std::vector<Feature>::iterator it = mFeatures.begin(); it != mFeatures.end(); it++) {
+        sum_x += it->vector.x;
+        sum_y += it->vector.y;
+    }
+    float avg_x = (float)sum_x / (float)mFeatures.size();
+    float avg_y = (float)sum_y / (float)mFeatures.size();
+    std::cout<<"Average before filtering x:"<<avg_x<<" y:"<<avg_y<<std::endl;
+
+    // Filtering
+    sum_x = 0, sum_y = 0;
+    const float skip_threshold = 15.f;
+    int skipped = 0;
+    std::vector<Feature> FilteredFeatures;
+    for (std::vector<Feature>::iterator it = mFeatures.begin(); it != mFeatures.end(); it++) {
+        std::cout<<"Vector x:"<<it->vector.x<<" y:"<<it->vector.y<<std::endl;
+        if (abs(it->vector.x - avg_x) > skip_threshold) {
+            std::cout<<"x too high/low"<<std::endl;
+            skipped++;
+            continue;
+        }
+        else if (abs(it->vector.y - avg_y) > skip_threshold) {
+            std::cout<<"y too high/low"<<std::endl;
+            skipped++;
+            continue;
+        }
+        FilteredFeatures.push_back(*it);
+        sum_x += it->vector.x;
+        sum_y += it->vector.y;
+    }
+
+    avg_x = (float)sum_x / (float)FilteredFeatures.size();
+    avg_y = (float)sum_y / (float)FilteredFeatures.size();
+    std::cout<<"Filtered Average x:"<<avg_x<<" y:"<<avg_y<<std::endl;
+
+    std::cout<<FilteredFeatures.size()<<"/" << mFeatures.size() << "vectors kept after filtering"<<std::endl;
+    mFeatures = FilteredFeatures;
+
+    drawDebug();
 }
 
 void MainWindow::drawDebug() {
@@ -237,10 +493,13 @@ void MainWindow::drawDebug() {
     QPainter qPainter(&tmp);
     QPen pen(Qt::red);
     qPainter.setBrush(Qt::NoBrush);
-    pen.setWidth(20);
+    pen.setWidth(10);
     qPainter.setPen(pen);
     //painter.drawPoint(5,5);
-    qPainter.drawRect(100,100,200,200);
+    //qPainter.drawRect(100,100,200,200);
+    for (std::vector<Feature>::iterator it = mFeatures.begin(); it != mFeatures.end(); it++) {
+        it->display(&qPainter);
+    }
     qPainter.end();
     imageLabel->setPixmap(QPixmap::fromImage(tmp));
 }
@@ -273,7 +532,7 @@ void MainWindow::callback_openFile() {
     imageLabel->setScaledContents(true);
     scrollArea->setWidgetResizable(true); // Fit the image to window
     stretchImage(30);
-    drawDebug();
+    //drawDebug();
 }
 
 void MainWindow::stackImageWithNewImage() {
@@ -291,8 +550,23 @@ void MainWindow::stackImageWithNewImage() {
         for(int y (0); y < tmp.height(); y++) {
             QColor pix = tmp.pixelColor(x, y);
             QColor pix2 = tmp2.pixelColor(x, y);
+            int r = pix.red()+pix2.red();
+            if (r > 255)
+                r = 255;
+            else if (r<0)
+                r = 0;
+            int g = pix.green()+pix2.green();
+            if (g > 255)
+                g = 255;
+            else if (g<0)
+                g = 0;
+            int b = pix.blue()+pix2.blue();
+            if (b > 255)
+                b = 255;
+            else if (b<0)
+                b = 0;
             // TODO: avoid overflow
-            tmp.setPixelColor(x, y, QColor(pix.red()+pix2.red(), pix.green()+pix2.green(), pix.blue()+pix2.blue()));
+            tmp.setPixelColor(x, y, QColor(r, g, b));
         }
     }
 

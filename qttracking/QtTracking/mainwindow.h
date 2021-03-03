@@ -4,10 +4,51 @@
 #include <QMainWindow>
 #include <QLabel>
 #include <QScrollArea>
+#include <QPainter>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
+
+class Point2f {
+public:
+    Point2f() {
+        x = 0.f;
+        y = 0.f;
+    }
+    Point2f(float a, float b) {
+        x = a;
+        y = b;
+    }
+    float x;
+    float y;
+};
+
+class Rectf {
+public:
+    Rectf() {
+        x = 0.f;
+        y = 0.f;
+        w = 0.f;
+        h = 0.f;
+    }
+    float x;
+    float y;
+    float w;
+    float h;
+};
+
+class Feature {
+    public:
+    Point2f origin;
+    Point2f destination;
+    Point2f vector;
+    void display(QPainter* painter) {
+        painter->drawPoint(destination.x,destination.y);
+        painter->drawRect(origin.x-10,origin.y-10, 20, 20);
+        painter->drawLine(origin.x,origin.y, destination.x,destination.y);
+    }
+};
 
 class RawImage {
 public:
@@ -60,5 +101,6 @@ private:
     double scaleFactor = 1;
     RawImage image_a; // reference image
     RawImage image_b; // "new" image
+    std::vector<Feature> mFeatures;
 };
 #endif // MAINWINDOW_H
