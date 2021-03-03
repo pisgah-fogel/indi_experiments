@@ -3,6 +3,8 @@
 
 #include <fitsio.h>
 #include <iostream>
+#include <QFileDialog>
+#include <QStandardPaths>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -20,6 +22,8 @@ MainWindow::MainWindow(QWidget *parent)
     scrollArea->setWidget(imageLabel);
     scrollArea->setVisible(false);
     setCentralWidget(scrollArea);
+
+    createActions();
 
     ///M66_Light_60_secs_2021-02-22T01-36-58_002.fits
     ///M66_Light_60_secs_2021-02-22T01-38-10_003.fits
@@ -173,7 +177,33 @@ void MainWindow::stretchImage(float intensity) {
 }
 
 void MainWindow::createActions() {
+    QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
 
+    QAction *openAct = fileMenu->addAction(tr("&Open..."), this, &MainWindow::callback_openFile);
+    openAct->setShortcut(QKeySequence::Open);
+    menuBar()->setVisible(true);
+    menuBar()->show();
+}
+
+void MainWindow::callback_openFile() {
+    QFileDialog dialog(this, tr("Open File"));
+    static bool firstDialog = true;
+
+    if (firstDialog) {
+        firstDialog = false;
+        const QStringList picturesLocations = QStandardPaths::standardLocations(QStandardPaths::PicturesLocation);
+        dialog.setDirectory(picturesLocations.isEmpty() ? QDir::currentPath() : picturesLocations.last());
+    }
+
+    QStringList mimeTypeFilters;
+    mimeTypeFilters.append("image/fits");
+    mimeTypeFilters.sort();
+    dialog.setMimeTypeFilters(mimeTypeFilters);
+    dialog.selectMimeTypeFilter("image/fits");
+    if (QFileDialog::AcceptOpen == QFileDialog::AcceptSave)
+        dialog.setDefaultSuffix("fits");
+
+    while (dialog.exec() == QDialog::Accepted && !openFit(dialog.selectedFiles().first())) {}
 }
 
 MainWindow::~MainWindow()

@@ -18,6 +18,8 @@ public:
     ~MainWindow();
     void createActions();
     void stretchImage(float intensity);
+private slots:
+    void callback_openFile();
 private:
     bool openFit(QString filename);
     Ui::MainWindow *ui;
