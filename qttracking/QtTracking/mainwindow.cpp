@@ -32,7 +32,7 @@ MainWindow::MainWindow(QWidget *parent)
     //resize(QGuiApplication::primaryScreen()->availableSize() * 3 / 5);
 }
 
-bool MainWindow::openFit(QString filename) {
+bool MainWindow::openFit(QString filename, QImage* image) {
     fitsfile *fptr;
     char card[FLEN_CARD];
     int status = 0, nkeys, ii;
@@ -123,21 +123,13 @@ bool MainWindow::openFit(QString filename) {
 
     int width = size_x;
     int height = size_y;
-    image = QPixmap(width, height).toImage();
+    *image = QPixmap(width, height).toImage();
 
-    for(int x(0); x < image.width(); x++) {
-        for(int y (0); y < image.height(); y++) {
-            image.setPixelColor(x, y, QColor(rarray[y*size_x + x], garray[y*size_x + x], barray[y*size_x + x]));
+    for(int x(0); x < image->width(); x++) {
+        for(int y (0); y < image->height(); y++) {
+            image->setPixelColor(x, y, QColor(rarray[y*size_x + x], garray[y*size_x + x], barray[y*size_x + x]));
         }
     }
-
-    imageLabel->setPixmap(QPixmap::fromImage(image));
-    scaleFactor = 1.0;
-    scrollArea->setVisible(true);
-    imageLabel->adjustSize();
-    imageLabel->setScaledContents(true);
-    scrollArea->setWidgetResizable(true); // Fit the image to window
-    stretchImage(30);
 
     free(rarray);
     free(garray);
@@ -203,7 +195,14 @@ void MainWindow::callback_openFile() {
     if (QFileDialog::AcceptOpen == QFileDialog::AcceptSave)
         dialog.setDefaultSuffix("fits");
 
-    while (dialog.exec() == QDialog::Accepted && !openFit(dialog.selectedFiles().first())) {}
+    while (dialog.exec() == QDialog::Accepted && !openFit(dialog.selectedFiles().first(), &image)) {}
+    imageLabel->setPixmap(QPixmap::fromImage(image));
+    scaleFactor = 1.0;
+    scrollArea->setVisible(true);
+    imageLabel->adjustSize();
+    imageLabel->setScaledContents(true);
+    scrollArea->setWidgetResizable(true); // Fit the image to window
+    stretchImage(30);
 }
 
 MainWindow::~MainWindow()

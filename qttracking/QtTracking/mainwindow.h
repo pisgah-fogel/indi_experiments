@@ -21,7 +21,7 @@ public:
 private slots:
     void callback_openFile();
 private:
-    bool openFit(QString filename);
+    static bool openFit(QString filename, QImage* image);
     Ui::MainWindow *ui;
     QImage image;
     QLabel *imageLabel;
