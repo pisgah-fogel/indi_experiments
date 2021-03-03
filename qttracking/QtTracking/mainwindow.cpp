@@ -13,6 +13,7 @@ MainWindow::MainWindow(QWidget *parent)
     , imageLabel(new QLabel)
     , scrollArea(new QScrollArea)
 {
+
     ui->setupUi(this);
 
     imageLabel->setBackgroundRole(QPalette::Base);
@@ -32,7 +33,17 @@ MainWindow::MainWindow(QWidget *parent)
     //resize(QGuiApplication::primaryScreen()->availableSize() * 3 / 5);
 }
 
-bool MainWindow::openFit(QString filename, QImage* image) {
+void MainWindow::RawToQImage(RawImage* raw, QImage* qimage) {
+    *qimage = QPixmap(raw->width, raw->height).toImage();
+
+    for(size_t x(0); x < raw->width; x++) {
+        for(size_t y (0); y < raw->height; y++) {
+            qimage->setPixelColor(x, y, QColor(raw->red[y*raw->width + x], raw->green[y*raw->width + x], raw->blue[y*raw->width + x]));
+        }
+    }
+}
+
+bool MainWindow::openFit(QString filename, RawImage* rawimg) {
     fitsfile *fptr;
     char card[FLEN_CARD];
     int status = 0, nkeys, ii;
@@ -121,36 +132,54 @@ bool MainWindow::openFit(QString filename, QImage* image) {
     if (status)
     fits_report_error(stderr, status);
 
-    int width = size_x;
-    int height = size_y;
-    *image = QPixmap(width, height).toImage();
+    rawimg->width = size_x;
+    rawimg->height = size_y;
+    if (rawimg->red != NULL)
+        free(rawimg->red);
+    if (rawimg->green != NULL)
+        free(rawimg->green);
+    if (rawimg->blue != NULL)
+        free(rawimg->blue);
 
-    for(int x(0); x < image->width(); x++) {
-        for(int y (0); y < image->height(); y++) {
-            image->setPixelColor(x, y, QColor(rarray[y*size_x + x], garray[y*size_x + x], barray[y*size_x + x]));
-        }
-    }
+    rawimg->red = rarray;
+    rawimg->green = garray;
+    rawimg->blue = barray;
+    computeBWfromRawImage(rawimg);
 
-    free(rarray);
-    free(garray);
-    free(barray);
+    // rarray, garray and barray will be free by ~RawImage or
+    // next time we open a new image
+
     fits_close_file(fptr, &status);
     return true;
+}
+
+void MainWindow::computeBWfromRawImage(RawImage* rawimg) {
+    if (rawimg->bw != NULL)
+        free(rawimg->bw);
+    rawimg->bw = (uint8_t*)malloc(rawimg->width*rawimg->height);
+
+    for(size_t x(0); x < rawimg->width; x++) {
+        for(size_t y (0); y < rawimg->height; y++) {
+            rawimg->bw[y*rawimg->width + x] = rawimg->red[y*rawimg->width + x] +
+                2*rawimg->green[y*rawimg->width + x] +
+                rawimg->blue[y*rawimg->width + x];
+        }
+    }
 }
 
 void MainWindow::stretchImage(float intensity) {
     QImage tmp = imageLabel->pixmap()->toImage();
 
     unsigned long long int red_sum = 0;
-    for(int x(0); x < image.width(); x++) {
-        for(int y (0); y < image.height(); y++) {
+    for(int x(0); x < tmp.width(); x++) {
+        for(int y (0); y < tmp.height(); y++) {
             red_sum += tmp.pixelColor(x, y).red();
         }
     }
-    float red_avg = (float)red_sum / (float)(image.width()*image.height());
+    float red_avg = (float)red_sum / (float)(tmp.width()*tmp.height());
 
-    for(int x(0); x < image.width(); x++) {
-        for(int y (0); y < image.height(); y++) {
+    for(int x(0); x < tmp.width(); x++) {
+        for(int y (0); y < tmp.height(); y++) {
             QColor pix = tmp.pixelColor(x, y);
             // TODO: find a better way to do it
             int r = (int)((float)pix.red())*(intensity / red_avg);
@@ -195,10 +224,10 @@ void MainWindow::callback_openFile_compare() {
     if (QFileDialog::AcceptOpen == QFileDialog::AcceptSave)
         dialog.setDefaultSuffix("fits");
 
-    QImage tobecompared;
-    while (dialog.exec() == QDialog::Accepted && !openFit(dialog.selectedFiles().first(), &tobecompared)) {}
+    while (dialog.exec() == QDialog::Accepted && !openFit(dialog.selectedFiles().first(), &image_b)) {}
 
-    // TODO: Live Stack image
+    stackImageWithNewImage();
+
     // TODO: detect features
     // TODO: Draw Debug
 }
@@ -234,8 +263,10 @@ void MainWindow::callback_openFile() {
     if (QFileDialog::AcceptOpen == QFileDialog::AcceptSave)
         dialog.setDefaultSuffix("fits");
 
-    while (dialog.exec() == QDialog::Accepted && !openFit(dialog.selectedFiles().first(), &image)) {}
-    imageLabel->setPixmap(QPixmap::fromImage(image));
+    while (dialog.exec() == QDialog::Accepted && !openFit(dialog.selectedFiles().first(), &image_a)) {}
+    QImage tmp;
+    RawToQImage(&image_a, &tmp);
+    imageLabel->setPixmap(QPixmap::fromImage(tmp));
     scaleFactor = 1.0;
     scrollArea->setVisible(true);
     imageLabel->adjustSize();
@@ -243,6 +274,29 @@ void MainWindow::callback_openFile() {
     scrollArea->setWidgetResizable(true); // Fit the image to window
     stretchImage(30);
     drawDebug();
+}
+
+void MainWindow::stackImageWithNewImage() {
+    QImage tmp = imageLabel->pixmap()->toImage();
+
+    if (tmp.width() != image_b.width || tmp.height() != image_b.height) {
+        std::cout<<"Cannot stack images, they are not the same size"<<std::endl;
+        return;
+    }
+
+    QImage tmp2;
+    RawToQImage(&image_b, &tmp2);
+
+    for(int x(0); x < tmp.width(); x++) {
+        for(int y (0); y < tmp.height(); y++) {
+            QColor pix = tmp.pixelColor(x, y);
+            QColor pix2 = tmp2.pixelColor(x, y);
+            // TODO: avoid overflow
+            tmp.setPixelColor(x, y, QColor(pix.red()+pix2.red(), pix.green()+pix2.green(), pix.blue()+pix2.blue()));
+        }
+    }
+
+    imageLabel->setPixmap(QPixmap::fromImage(tmp));
 }
 
 MainWindow::~MainWindow()
