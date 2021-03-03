@@ -2,6 +2,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QLabel>
+#include <QScrollArea>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -14,8 +16,14 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-
+    void createActions();
+    void stretchImage(float intensity);
 private:
+    bool openFit(QString filename);
     Ui::MainWindow *ui;
+    QImage image;
+    QLabel *imageLabel;
+    QScrollArea *scrollArea;
+    double scaleFactor = 1;
 };
 #endif // MAINWINDOW_H

@@ -7,3 +7,5 @@
 **/data/
 **/app
 **/fitsviewer
+**/*.user
+**/build-*
