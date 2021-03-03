@@ -27,7 +27,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     ///M66_Light_60_secs_2021-02-22T01-36-58_002.fits
     ///M66_Light_60_secs_2021-02-22T01-38-10_003.fits
-    openFit("/home/phileas/Pictures/M66_soir_4/Light/M66_Light_60_secs_2021-02-22T01-36-58_002.fits");
+    //openFit("/home/phileas/Pictures/M66_soir_4/Light/M66_Light_60_secs_2021-02-22T01-36-58_002.fits");
 
     //resize(QGuiApplication::primaryScreen()->availableSize() * 3 / 5);
 }
