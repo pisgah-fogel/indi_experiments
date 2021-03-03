@@ -5,6 +5,7 @@
 #include <iostream>
 #include <QFileDialog>
 #include <QStandardPaths>
+#include <QPainter>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -28,7 +29,6 @@ MainWindow::MainWindow(QWidget *parent)
     ///M66_Light_60_secs_2021-02-22T01-36-58_002.fits
     ///M66_Light_60_secs_2021-02-22T01-38-10_003.fits
     //openFit("/home/phileas/Pictures/M66_soir_4/Light/M66_Light_60_secs_2021-02-22T01-36-58_002.fits");
-
     //resize(QGuiApplication::primaryScreen()->availableSize() * 3 / 5);
 }
 
@@ -173,8 +173,47 @@ void MainWindow::createActions() {
 
     QAction *openAct = fileMenu->addAction(tr("&Open..."), this, &MainWindow::callback_openFile);
     openAct->setShortcut(QKeySequence::Open);
-    menuBar()->setVisible(true);
-    menuBar()->show();
+
+    QAction *compareAct = fileMenu->addAction(tr("&Compare with..."), this, &MainWindow::callback_openFile_compare);
+}
+
+void MainWindow::callback_openFile_compare() {
+    QFileDialog dialog(this, tr("Open File"));
+    static bool firstDialog = true;
+
+    if (firstDialog) {
+        firstDialog = false;
+        const QStringList picturesLocations = QStandardPaths::standardLocations(QStandardPaths::PicturesLocation);
+        dialog.setDirectory(picturesLocations.isEmpty() ? QDir::currentPath() : picturesLocations.last());
+    }
+
+    QStringList mimeTypeFilters;
+    mimeTypeFilters.append("image/fits");
+    mimeTypeFilters.sort();
+    dialog.setMimeTypeFilters(mimeTypeFilters);
+    dialog.selectMimeTypeFilter("image/fits");
+    if (QFileDialog::AcceptOpen == QFileDialog::AcceptSave)
+        dialog.setDefaultSuffix("fits");
+
+    QImage tobecompared;
+    while (dialog.exec() == QDialog::Accepted && !openFit(dialog.selectedFiles().first(), &tobecompared)) {}
+
+    // TODO: Live Stack image
+    // TODO: detect features
+    // TODO: Draw Debug
+}
+
+void MainWindow::drawDebug() {
+    QImage tmp = imageLabel->pixmap()->toImage();
+    QPainter qPainter(&tmp);
+    QPen pen(Qt::red);
+    qPainter.setBrush(Qt::NoBrush);
+    pen.setWidth(20);
+    qPainter.setPen(pen);
+    //painter.drawPoint(5,5);
+    qPainter.drawRect(100,100,200,200);
+    qPainter.end();
+    imageLabel->setPixmap(QPixmap::fromImage(tmp));
 }
 
 void MainWindow::callback_openFile() {
@@ -203,6 +242,7 @@ void MainWindow::callback_openFile() {
     imageLabel->setScaledContents(true);
     scrollArea->setWidgetResizable(true); // Fit the image to window
     stretchImage(30);
+    drawDebug();
 }
 
 MainWindow::~MainWindow()

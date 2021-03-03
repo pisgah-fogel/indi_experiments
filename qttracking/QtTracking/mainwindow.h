@@ -20,6 +20,8 @@ public:
     void stretchImage(float intensity);
 private slots:
     void callback_openFile();
+    void callback_openFile_compare();
+    void drawDebug();
 private:
     static bool openFit(QString filename, QImage* image);
     Ui::MainWindow *ui;
