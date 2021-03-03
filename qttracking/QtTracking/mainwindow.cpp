@@ -64,7 +64,13 @@ bool MainWindow::openFit(QString filename, RawImage* rawimg) {
 
     // Open the file
     auto begin = std::chrono::high_resolution_clock::now();
-    fits_open_file(&fptr, filename.toStdString().c_str(), READONLY, &status);
+    QFileInfo fileinfo(filename);
+    if (!fileinfo.exists() || !fileinfo.isFile() || !fileinfo.isReadable()) {
+        std::cout<<"Error: Cannot read file"<<std::endl;
+        return false;
+    }
+
+    fits_open_file(&fptr, fileinfo.absoluteFilePath().toStdString().c_str(), READONLY, &status);
     fits_get_hdrspace(fptr, &nkeys, NULL, &status);
     auto end = std::chrono::high_resolution_clock::now();
     std::cout << "Open file: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count() << "ns" << std::endl;
@@ -218,13 +224,51 @@ void MainWindow::scanDirectory() {
     // Looking into imageDirectory
     QDir directory(imageDirectory);
     QStringList images = directory.entryList(QStringList() << "*.fits" << "*.FITS",QDir::Files);
+    QString filetoprocess;
+    bool somethingtodo = false;
     foreach(QString filename, images) {
-        if (old_files.find(filename) == old_files.end()) {
-            std::cout<<"New file "<<filename.toStdString();
-            QFileInfo fileInfo(filename);
+        QString img_filename = imageDirectory+ "/" +filename;
+        if (old_files.find(img_filename) == old_files.end()) {
+            std::cout<<"New file "<<img_filename.toStdString();
+            QFileInfo fileInfo(img_filename);
             QDateTime t = fileInfo.lastModified();
             std::cout<<" - "<<t.toString().toStdString()<<std::endl;
-            old_files[filename] = t;
+            old_files[img_filename] = t;
+            somethingtodo = true;
+            filetoprocess = img_filename;
+            break; // TODO: handle many files
+        }
+    }
+
+    if (somethingtodo) {
+        // Do something with filetoprocess
+        if (image_a.empty()) {
+            // Considere the image as our reference
+            // TODO
+            openFit(filetoprocess, &image_a);
+            QImage tmp;
+            RawToQImage(&image_a, &tmp);
+            imageLabel->setPixmap(QPixmap::fromImage(tmp));
+            scrollArea->setVisible(true);
+            imageLabel->adjustSize();
+            imageLabel->setScaledContents(true);
+            scrollArea->setWidgetResizable(true); // Fit the image to window
+            stretchImage(30);
+        } else {
+            // move image_b to image_a and do as if image_b was empty
+            if (!image_b.empty()) {
+             image_a = image_b;
+             image_b = RawImage();
+            }
+            QImage tmp;
+            RawToQImage(&image_a, &tmp);
+            imageLabel->setPixmap(QPixmap::fromImage(tmp));
+
+            openFit(filetoprocess, &image_b);
+            stackImageWithImage_b();
+            stretchImage(30);
+            measureVectorBtwImages();
+            drawDebug();
         }
     }
 
@@ -456,28 +500,7 @@ std::vector<Feature> matchStarsBruteForce(std::vector<Point2f>* point1, std::vec
     return movement_vector;
 }
 
-void MainWindow::callback_openFile_compare() {
-    QFileDialog dialog(this, tr("Open File"));
-    static bool firstDialog = true;
-
-    if (firstDialog) {
-        firstDialog = false;
-        const QStringList picturesLocations = QStandardPaths::standardLocations(QStandardPaths::PicturesLocation);
-        dialog.setDirectory(picturesLocations.isEmpty() ? QDir::currentPath() : picturesLocations.last());
-    }
-
-    QStringList mimeTypeFilters;
-    mimeTypeFilters.append("image/fits");
-    mimeTypeFilters.sort();
-    dialog.setMimeTypeFilters(mimeTypeFilters);
-    dialog.selectMimeTypeFilter("image/fits");
-    if (QFileDialog::AcceptOpen == QFileDialog::AcceptSave)
-        dialog.setDefaultSuffix("fits");
-
-    while (dialog.exec() == QDialog::Accepted && !openFit(dialog.selectedFiles().first(), &image_b)) {}
-
-    stackImageWithNewImage();
-
+void MainWindow::measureVectorBtwImages() {
     // Detect features, Measure star's movement between images
     std::vector<Point2f> points1, points2;
     float avg1 = getImgAveragePixel(&image_a);
@@ -530,7 +553,30 @@ void MainWindow::callback_openFile_compare() {
 
     std::cout<<FilteredFeatures.size()<<"/" << mFeatures.size() << "vectors kept after filtering"<<std::endl;
     mFeatures = FilteredFeatures;
+}
 
+void MainWindow::callback_openFile_compare() {
+    QFileDialog dialog(this, tr("Open File"));
+    static bool firstDialog = true;
+
+    if (firstDialog) {
+        firstDialog = false;
+        const QStringList picturesLocations = QStandardPaths::standardLocations(QStandardPaths::PicturesLocation);
+        dialog.setDirectory(picturesLocations.isEmpty() ? QDir::currentPath() : picturesLocations.last());
+    }
+
+    QStringList mimeTypeFilters;
+    mimeTypeFilters.append("image/fits");
+    mimeTypeFilters.sort();
+    dialog.setMimeTypeFilters(mimeTypeFilters);
+    dialog.selectMimeTypeFilter("image/fits");
+    if (QFileDialog::AcceptOpen == QFileDialog::AcceptSave)
+        dialog.setDefaultSuffix("fits");
+
+    while (dialog.exec() == QDialog::Accepted && !openFit(dialog.selectedFiles().first(), &image_b)) {}
+
+    stackImageWithImage_b();
+    measureVectorBtwImages();
     drawDebug();
 }
 
@@ -572,16 +618,14 @@ void MainWindow::callback_openFile() {
     QImage tmp;
     RawToQImage(&image_a, &tmp);
     imageLabel->setPixmap(QPixmap::fromImage(tmp));
-    scaleFactor = 1.0;
     scrollArea->setVisible(true);
     imageLabel->adjustSize();
     imageLabel->setScaledContents(true);
     scrollArea->setWidgetResizable(true); // Fit the image to window
     stretchImage(30);
-    //drawDebug();
 }
 
-void MainWindow::stackImageWithNewImage() {
+void MainWindow::stackImageWithImage_b() {
     QImage tmp = imageLabel->pixmap()->toImage();
 
     if (tmp.width() != image_b.width || tmp.height() != image_b.height) {

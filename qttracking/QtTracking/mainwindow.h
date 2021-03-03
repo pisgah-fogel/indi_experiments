@@ -52,6 +52,9 @@ class Feature {
 
 class RawImage {
 public:
+    bool empty() {
+        return blue == NULL && red == NULL && green == NULL && bw == NULL;
+    }
     RawImage() {
         width = 0;
         height = 0;
@@ -93,14 +96,14 @@ private slots:
     void drawDebug();
     void scanDirectory();
 private:
-    void stackImageWithNewImage();
+    void stackImageWithImage_b();
     static bool openFit(QString filename, RawImage *image);
     static void RawToQImage(RawImage* raw, QImage* qimage);
     static void computeBWfromRawImage(RawImage* rawimg);
+    void measureVectorBtwImages();
     Ui::MainWindow *ui;
     QLabel *imageLabel;
     QScrollArea *scrollArea;
-    double scaleFactor = 1;
     RawImage image_a; // reference image
     RawImage image_b; // "new" image
     std::vector<Feature> mFeatures;
