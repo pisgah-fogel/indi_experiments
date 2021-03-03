@@ -9,6 +9,9 @@
 #include <QTimer>
 #include <QFileInfo>
 #include <QDateTime>
+#include <QChartView>
+#include <QLineSeries>
+#include <QPolarChart>
 
 #define PIXVAL_THRESHOLD 10 // number of time the average pixel value
 #define MIN_DISTANCE_BETWEEN_STARS 10
@@ -30,12 +33,34 @@ MainWindow::MainWindow(QWidget *parent)
     scrollArea->setBackgroundRole(QPalette::Dark);
     scrollArea->setWidget(imageLabel);
     scrollArea->setVisible(false);
-    setCentralWidget(scrollArea);
+
+    ui->mainImageLayout->addWidget(scrollArea);
+    //setCentralWidget(scrollArea);
 
     createActions();
 
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(scanDirectory()));
+
+    QtCharts::QChartView* chartView = new QtCharts::QChartView();
+    QtCharts::QLineSeries* series = new QtCharts::QLineSeries();
+    series->append(0, 6);
+    series->append(2, 4);
+    chartView->chart()->addSeries(series);
+    chartView->chart()->createDefaultAxes();
+
+    QtCharts::QChartView* chartView2 = new QtCharts::QChartView();
+    QtCharts::QLineSeries* series2 = new QtCharts::QLineSeries();
+    series2->append(-10, 10);
+    series2->append(0, 0);
+    QtCharts::QPolarChart* polar = new QtCharts::QPolarChart();
+    polar->addSeries(series2);
+    polar->createDefaultAxes();
+    chartView2->setChart(polar);
+    series2->append(5, 5);
+
+    ui->graphLayout->addWidget(chartView);
+    ui->graphLayout->addWidget(chartView2);
 
     ///M66_Light_60_secs_2021-02-22T01-36-58_002.fits
     ///M66_Light_60_secs_2021-02-22T01-38-10_003.fits
@@ -573,11 +598,20 @@ void MainWindow::callback_openFile_compare() {
     if (QFileDialog::AcceptOpen == QFileDialog::AcceptSave)
         dialog.setDefaultSuffix("fits");
 
-    while (dialog.exec() == QDialog::Accepted && !openFit(dialog.selectedFiles().first(), &image_b)) {}
+    if (dialog.exec() != QDialog::Accepted) {
+        return; // Aborded by user
+    }
 
-    stackImageWithImage_b();
-    measureVectorBtwImages();
-    drawDebug();
+    // TODO: QProgressDialog
+    this->update();
+
+    if (openFit(dialog.selectedFiles().first(), &image_b)) {
+        stackImageWithImage_b();
+        measureVectorBtwImages();
+        drawDebug();
+    } else {
+        std::cout<<"Error: Open FITS failed"<<std::endl;
+    }
 }
 
 void MainWindow::drawDebug() {
@@ -614,7 +648,13 @@ void MainWindow::callback_openFile() {
     if (QFileDialog::AcceptOpen == QFileDialog::AcceptSave)
         dialog.setDefaultSuffix("fits");
 
-    while (dialog.exec() == QDialog::Accepted && !openFit(dialog.selectedFiles().first(), &image_a)) {}
+    if (dialog.exec() != QDialog::Accepted)
+        return; // Aborded by user
+    if (!openFit(dialog.selectedFiles().first(), &image_a)) {
+        std::cout<<"Error: cannon open FITS file (reference)"<<std::endl;
+        return;
+    }
+    // TODO: QProgressDialog
     QImage tmp;
     RawToQImage(&image_a, &tmp);
     imageLabel->setPixmap(QPixmap::fromImage(tmp));
