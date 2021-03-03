@@ -89,7 +89,9 @@ public:
 private slots:
     void callback_openFile();
     void callback_openFile_compare();
+    void callback_watch_directory();
     void drawDebug();
+    void scanDirectory();
 private:
     void stackImageWithNewImage();
     static bool openFit(QString filename, RawImage *image);
@@ -102,5 +104,10 @@ private:
     RawImage image_a; // reference image
     RawImage image_b; // "new" image
     std::vector<Feature> mFeatures;
+
+    QString imageDirectory;
+    bool trackingDirectory;
+    QTimer *timer;
+    std::map<QString, QDateTime> old_files;
 };
 #endif // MAINWINDOW_H

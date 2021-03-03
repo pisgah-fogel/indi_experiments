@@ -6,6 +6,9 @@
 #include <QFileDialog>
 #include <QStandardPaths>
 #include <QPainter>
+#include <QTimer>
+#include <QFileInfo>
+#include <QDateTime>
 
 #define PIXVAL_THRESHOLD 10 // number of time the average pixel value
 #define MIN_DISTANCE_BETWEEN_STARS 10
@@ -30,6 +33,9 @@ MainWindow::MainWindow(QWidget *parent)
     setCentralWidget(scrollArea);
 
     createActions();
+
+    timer = new QTimer(this);
+    connect(timer, SIGNAL(timeout()), this, SLOT(scanDirectory()));
 
     ///M66_Light_60_secs_2021-02-22T01-36-58_002.fits
     ///M66_Light_60_secs_2021-02-22T01-38-10_003.fits
@@ -205,6 +211,44 @@ void MainWindow::stretchImage(float intensity) {
     imageLabel->setPixmap(QPixmap::fromImage(tmp));
 }
 
+void MainWindow::scanDirectory() {
+    if (!trackingDirectory)
+        return;
+
+    // Looking into imageDirectory
+    QDir directory(imageDirectory);
+    QStringList images = directory.entryList(QStringList() << "*.fits" << "*.FITS",QDir::Files);
+    foreach(QString filename, images) {
+        if (old_files.find(filename) == old_files.end()) {
+            std::cout<<"New file "<<filename.toStdString();
+            QFileInfo fileInfo(filename);
+            QDateTime t = fileInfo.lastModified();
+            std::cout<<" - "<<t.toString().toStdString()<<std::endl;
+            old_files[filename] = t;
+        }
+    }
+
+    timer->start(3000); // TODO: Add variable delay
+}
+
+void MainWindow::callback_watch_directory() {
+    QFileDialog dialog(this, tr("Track Directory"));
+    dialog.setFileMode(QFileDialog::DirectoryOnly);
+    static bool firstDialog = true;
+
+    if (firstDialog) {
+        firstDialog = false;
+        const QStringList picturesLocations = QStandardPaths::standardLocations(QStandardPaths::PicturesLocation);
+        dialog.setDirectory(picturesLocations.isEmpty() ? QDir::currentPath() : picturesLocations.last());
+    }
+
+    if (dialog.exec() == QDialog::Accepted) {
+        trackingDirectory = true;
+        imageDirectory = dialog.selectedFiles().first();
+        timer->start(3000); // TODO: Add variable delay
+    }
+}
+
 void MainWindow::createActions() {
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
 
@@ -212,6 +256,8 @@ void MainWindow::createActions() {
     openAct->setShortcut(QKeySequence::Open);
 
     QAction *compareAct = fileMenu->addAction(tr("&Compare with..."), this, &MainWindow::callback_openFile_compare);
+
+    QAction *watchAct = fileMenu->addAction(tr("&Watch directory..."), this, &MainWindow::callback_watch_directory);
 }
 
 float getImgAveragePixel(RawImage* rawimg) {
