@@ -43,59 +43,9 @@ MainWindow::MainWindow(QWidget *parent)
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(scanDirectory()));
 
-    QtCharts::QValueAxis *axisX_1 = new QtCharts::QValueAxis();
-    QtCharts::QValueAxis *axisY_1 = new QtCharts::QValueAxis();
-    QtCharts::QChartView* chartView = new QtCharts::QChartView();
-    QtCharts::QLineSeries* serie_vec_x = new QtCharts::QLineSeries();
-    chartView->chart()->addSeries(serie_vec_x);
-    //chartView->chart()->createDefaultAxes();
-    chartView->chart()->addAxis(axisX_1,Qt::AlignBottom);
-    chartView->chart()->addAxis(axisY_1,Qt::AlignLeft);
-    serie_vec_x->attachAxis(axisX_1);
-    serie_vec_x->attachAxis(axisY_1);
-    axisX_1->setTickCount(21);
-    axisX_1->setRange(0, 10);
-    axisY_1->setRange(-20, 20);
+    createGraph();
 
-    // Add some datas
-    serie_vec_x->append(0, 6);
-    serie_vec_x->append(2, 4);
-
-    // To add something to the series
-    qreal x_scroll = chartView->chart()->plotArea().width() / axisX_1->tickCount();
-    qreal x_decal = (axisX_1->max() - axisX_1->min()) / axisX_1->tickCount();
-    qreal m_x = 4 + x_decal;
-    qreal m_y = 15;
-    serie_vec_x->append(m_x, m_y);
-    chartView->chart()->scroll(x_scroll, 0);
-
-
-    QtCharts::QLineSeries* series2 = new QtCharts::QLineSeries();
-    series2->append(10, 10);
-    series2->append(0, 0);
-    QtCharts::QPolarChart* polar = new QtCharts::QPolarChart();
-    polar->addSeries(series2);
-    polar->createDefaultAxes();
-
-    /*
-    // Doesn't work
-    QtCharts::QValueAxis *angularAxis = new QtCharts::QValueAxis(); // Add axis 1
-    angularAxis->setTickCount(9);
-    angularAxis->setLabelFormat("%.1f");
-    angularAxis->setShadesVisible(true);
-    angularAxis->setShadesBrush(QBrush(QColor(249, 249, 255)));
-    polar->addAxis(angularAxis, QtCharts::QPolarChart::PolarOrientationAngular);
-    QtCharts::QValueAxis *radialAxis = new QtCharts::QValueAxis(); // Add axis 2
-    radialAxis->setTickCount(9);
-    radialAxis->setLabelFormat("%d");
-    polar->addAxis(radialAxis, QtCharts::QPolarChart::PolarOrientationRadial);
-    */
-    QtCharts::QChartView* chartView2 = new QtCharts::QChartView();
-    chartView2->setChart(polar);
-
-
-    ui->graphLayout->addWidget(chartView);
-    ui->graphLayout->addWidget(chartView2);
+    createPolarChart();
 
     ///M66_Light_60_secs_2021-02-22T01-36-58_002.fits
     ///M66_Light_60_secs_2021-02-22T01-38-10_003.fits
@@ -247,8 +197,8 @@ void MainWindow::computeBWfromRawImage(RawImage* rawimg) {
     }
 }
 
-void MainWindow::stretchImage(float intensity) {
-    QImage tmp = imageLabel->pixmap()->toImage();
+void MainWindow::stretchImage(QLabel* label, float intensity) {
+    QImage tmp = label->pixmap()->toImage();
 
     unsigned long long int red_sum = 0;
     for(int x(0); x < tmp.width(); x++) {
@@ -274,7 +224,7 @@ void MainWindow::stretchImage(float intensity) {
             tmp.setPixelColor(x, y, QColor(r, g, b));
         }
     }
-    imageLabel->setPixmap(QPixmap::fromImage(tmp));
+    label->setPixmap(QPixmap::fromImage(tmp));
 }
 
 void MainWindow::scanDirectory() {
@@ -313,7 +263,7 @@ void MainWindow::scanDirectory() {
             imageLabel->adjustSize();
             imageLabel->setScaledContents(true);
             scrollArea->setWidgetResizable(true); // Fit the image to window
-            stretchImage(30);
+            stretchImage(imageLabel, 30);
         } else {
             // move image_b to image_a and do as if image_b was empty
             if (!image_b.empty()) {
@@ -326,7 +276,7 @@ void MainWindow::scanDirectory() {
 
             openFit(filetoprocess, &image_b);
             stackImageWithImage_b();
-            stretchImage(30);
+            stretchImage(imageLabel, 30);
             measureVectorBtwImages();
             drawDebug();
         }
@@ -613,6 +563,9 @@ void MainWindow::measureVectorBtwImages() {
 
     std::cout<<FilteredFeatures.size()<<"/" << mFeatures.size() << "vectors kept after filtering"<<std::endl;
     mFeatures = FilteredFeatures;
+
+    addPointToPolarChart(avg_x, avg_y);
+    addValueToGraph(avg_x, avg_y);
 }
 
 void MainWindow::callback_openFile_compare() {
@@ -697,7 +650,8 @@ void MainWindow::callback_openFile() {
     imageLabel->adjustSize();
     imageLabel->setScaledContents(true);
     scrollArea->setWidgetResizable(true); // Fit the image to window
-    stretchImage(30);
+    stretchImage(imageLabel, 30);
+    MainWindow::redGreenStackingChangeImage(&tmp);
 }
 
 void MainWindow::stackImageWithImage_b() {

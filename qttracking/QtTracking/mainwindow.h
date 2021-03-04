@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <QScrollArea>
 #include <QPainter>
+#include <QtCharts>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -88,7 +89,7 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     void createActions();
-    void stretchImage(float intensity);
+    void stretchImage(QLabel* label, float intensity);
 private slots:
     void callback_openFile();
     void callback_openFile_compare();
@@ -101,6 +102,16 @@ private:
     static void RawToQImage(RawImage* raw, QImage* qimage);
     static void computeBWfromRawImage(RawImage* rawimg);
     void measureVectorBtwImages();
+
+    void createPolarChart();
+    void addPointToPolarChart(float x, float y);
+
+    void createRedGreenStacking();
+    void redGreenStackingChangeImage(QImage* image);
+
+    void createGraph();
+    void addValueToGraph(float vec_x, float vec_y);
+
     Ui::MainWindow *ui;
     QLabel *imageLabel;
     QScrollArea *scrollArea;
@@ -112,5 +123,12 @@ private:
     bool trackingDirectory;
     QTimer *timer;
     std::map<QString, QDateTime> old_files;
+
+    // Required by graph
+    QtCharts::QChartView* mChartView;
+    QtCharts::QLineSeries* mSerie_vec_x; // For X deviation in between images
+    QtCharts::QLineSeries* mSerie_vec_y; // For Y deviation in between images
+    QtCharts::QValueAxis *mAxisX_1;
+    QtCharts::QValueAxis *mAxisY_1;
 };
 #endif // MAINWINDOW_H
