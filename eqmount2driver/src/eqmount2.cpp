@@ -1,6 +1,7 @@
 #include "eqmount2.h"
 
 #include "indicom.h"
+#include <iostream>
 
 #include <cmath>
 #include <memory>
@@ -99,15 +100,43 @@ bool Eqmount2::initProperties()
     // Add Debug control so end user can turn debugging/loggin on and off
     addDebugControl();
 
+#ifdef SIMULATION
     // Enable simulation mode so that serial connection in INDI::Telescope does not try
     // to attempt to perform a physical connection to the serial port.
-    setSimulation(true); // TODO: Remove this
+    setSimulation(true);
+#endif
 
     // Set telescope capabilities. 0 is for the the number of slew rates that we support. We have none for this simple driver.
-    // TODO: implement TELESCOPE_CAN_SYNC 
-    SetTelescopeCapability(TELESCOPE_CAN_GOTO | TELESCOPE_CAN_ABORT | TELESCOPE_CAN_CONTROL_TRACK | TELESCOPE_HAS_TRACK_RATE, 2);
+    // TODO: implement TELESCOPE_CAN_SYNC
+    // TODO: implement TELESCOPE_CAN_GOTO
+    SetTelescopeCapability( TELESCOPE_CAN_ABORT | TELESCOPE_CAN_CONTROL_TRACK | TELESCOPE_HAS_TRACK_RATE, 4);
+    // TODO: TELESCOPE_SLEW_RATE with SLEW_GUIDE, SLEW_CENTERING, SLEW_FIND, SLEW_MAX 
 
     return true;
+}
+
+// Set active tracking mode. Do not change track state.
+bool Eqmount2::SetTrackMode (uint8_t mode) {
+    switch (mode)
+    {
+    case TelescopeTrackMode::TRACK_SIDEREAL:
+        std::cout<<"Trying to set Track mode to SIDEREAL"<<std::endl;
+        TrackState = SCOPE_TRACKING;
+        // TODO: start tracking
+        return true;
+    case TelescopeTrackMode::TRACK_SOLAR:
+        std::cout<<"Trying to set Track mode to SOLAR"<<std::endl;
+        return false;
+    case TelescopeTrackMode::TRACK_LUNAR:
+        std::cout<<"Trying to set Track mode to LUNAR"<<std::endl;
+        return false;
+    case TelescopeTrackMode::TRACK_CUSTOM:
+        std::cout<<"Trying to set Track mode to CUSTOM"<<std::endl;
+        return false;
+    default:
+        std::cout<<"Trying to set Track mode to an unknown value: "<<(int)mode<<std::endl;
+        return false;
+    }
 }
 
 bool Eqmount2::SetTrackRate(double raRate, double deRate)
@@ -128,10 +157,15 @@ bool Eqmount2::SetTrackEnabled(bool enabled)
         //SetTrackMode(IUFindOnSwitchIndex(&TrackModeSP));
         //if (TrackModeS[TRACK_CUSTOM].s == ISS_ON)
         SetTrackRate(TrackRateN[AXIS_RA].value, TrackRateN[AXIS_DE].value);
-        LOG_INFO("Tracking on");
+        LOG_INFO("Eqmount2::SetTrackEnabled Tracking on");
+        RememberTrackState = SCOPE_IDLE;
+        TrackState = SCOPE_TRACKING; // TODO: Track
     }
-    else
-        LOG_INFO("Tracking off");
+    else {
+        LOG_INFO("Eqmount2::SetTrackEnabled Tracking off");
+        RememberTrackState = SCOPE_IDLE;
+        TrackState = SCOPE_IDLE; // TODO: power motor off
+    }
     
     return true;
 }
@@ -154,7 +188,11 @@ bool Eqmount2::Handshake()
 ***************************************************************************************/
 const char *Eqmount2::getDefaultName()
 {
+    #ifdef SIMULATION
+    return "EQmount2 - Simulation";
+    #else
     return "EQmount2 - Experimental";
+    #endif
 }
 
 /**************************************************************************************
@@ -162,6 +200,7 @@ const char *Eqmount2::getDefaultName()
 ***************************************************************************************/
 bool Eqmount2::Goto(double ra, double dec)
 {
+    #ifdef SIMULATION
     targetRA  = ra;
     targetDEC = dec;
     char RAStr[64]={0}, DecStr[64]={0};
@@ -171,6 +210,7 @@ bool Eqmount2::Goto(double ra, double dec)
     fs_sexa(DecStr, targetDEC, 2, 3600);
 
     // Mark state as slewing
+    RememberTrackState = SCOPE_TRACKING; // In case we abord
     TrackState = SCOPE_SLEWING;
 
     // Inform client we are slewing to a new position
@@ -178,6 +218,9 @@ bool Eqmount2::Goto(double ra, double dec)
 
     // Success!
     return true;
+    #else
+    return false;
+    #endif
 }
 
 /**************************************************************************************
@@ -186,6 +229,9 @@ bool Eqmount2::Goto(double ra, double dec)
 bool Eqmount2::Abort()
 {
     LOG_INFO("Abort");
+    // TODO: Abord
+    RememberTrackState = SCOPE_IDLE;
+    TrackState = RememberTrackState;
     return true;
 }
 
@@ -194,6 +240,8 @@ bool Eqmount2::Abort()
 ***************************************************************************************/
 bool Eqmount2::ReadScopeStatus()
 {
+#ifdef SIMULATION
+
     static struct timeval ltv { 0, 0 };
     struct timeval tv { 0, 0 };
     double dt = 0, da_ra = 0, da_dec = 0, dx = 0, dy = 0;
@@ -275,4 +323,31 @@ bool Eqmount2::ReadScopeStatus()
 
     NewRaDec(currentRA, currentDEC);
     return true;
+#else
+    struct timeval tv { 0, 0 };
+    double dt = 0;
+    static struct timeval ltv { 0, 0 };
+
+    gettimeofday(&tv, nullptr);
+
+    if (ltv.tv_sec == 0 && ltv.tv_usec == 0)
+        ltv = tv;
+
+    dt  = tv.tv_sec - ltv.tv_sec + (tv.tv_usec - ltv.tv_usec) / 1e6; // Elaspsed time
+    ltv = tv;
+
+    if (TrackState == SCOPE_IDLE) {
+        currentRA -= dt;
+        // currentDEC unchanged
+    }
+
+    fs_sexa(RAStr, currentRA, 2, 3600);
+    fs_sexa(DecStr, currentDEC, 2, 3600);
+
+    DEBUGF(DBG_SCOPE, "Current RA: %s Current DEC: %s", RAStr, DecStr);
+
+    NewRaDec(currentRA, currentDEC);
+
+    return false; // TODO: implement this
+#endif
 }

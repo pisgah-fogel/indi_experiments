@@ -1,5 +1,7 @@
 #pragma once
 
+#define SIMULATION
+
 #include "inditelescope.h"
 
 class Eqmount2 : public INDI::Telescope
@@ -20,6 +22,7 @@ class Eqmount2 : public INDI::Telescope
 
     bool SetTrackRate(double raRate, double deRate) override;
     bool SetTrackEnabled(bool enabled) override;	
+    bool SetTrackMode (uint8_t mode) override;
 
   private:
     double currentRA {0};
