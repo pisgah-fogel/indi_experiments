@@ -35,12 +35,14 @@ void MainWindow::createPolarChart()
                       POLAR_AMPLIFICATION*POLAR_SQUARE_SIZE*2);
     qPainter.end();
     ui->polar->setPixmap(QPixmap::fromImage(tmp));
+    //ui->graphLayout->addWidget(ui->polar);
 }
 
 void MainWindow::addPointToPolarChart(float x, float y)
 {
     // QImage tmp = ui->polar->pixmap()->toImage(); // TODO: Stack ?
     QImage tmp = QPixmap(POLAR_SIZE, POLAR_SIZE).toImage();
+    tmp.fill(Qt::black);
     QPainter qPainter(&tmp);
     QPen pen(Qt::green);
     pen.setWidth(POLAR_LINE_WIDTH);

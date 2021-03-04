@@ -55,7 +55,7 @@ void MainWindow::addValueToGraph(float vec_x, float vec_y) {
     // To add something to the series
     qreal x_scroll = mChartView->chart()->plotArea().width() / mAxisX_1->tickCount();
     qreal x_decal = (mAxisX_1->max() - mAxisX_1->min()) / mAxisX_1->tickCount();
-    qreal m_x = 1 + x_decal;
+    qreal m_x = 6 + x_decal;
     mSerie_vec_x->append(m_x, vec_x);
     mSerie_vec_y->append(m_x, vec_y);
     mChartView->chart()->scroll(x_scroll, 0);
