@@ -12,6 +12,7 @@
 #include <QChartView>
 #include <QLineSeries>
 #include <QPolarChart>
+#include <QValueAxis>
 
 #define PIXVAL_THRESHOLD 10 // number of time the average pixel value
 #define MIN_DISTANCE_BETWEEN_STARS 10
@@ -42,22 +43,56 @@ MainWindow::MainWindow(QWidget *parent)
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(scanDirectory()));
 
+    QtCharts::QValueAxis *axisX_1 = new QtCharts::QValueAxis();
+    QtCharts::QValueAxis *axisY_1 = new QtCharts::QValueAxis();
     QtCharts::QChartView* chartView = new QtCharts::QChartView();
-    QtCharts::QLineSeries* series = new QtCharts::QLineSeries();
-    series->append(0, 6);
-    series->append(2, 4);
-    chartView->chart()->addSeries(series);
-    chartView->chart()->createDefaultAxes();
+    QtCharts::QLineSeries* serie_vec_x = new QtCharts::QLineSeries();
+    chartView->chart()->addSeries(serie_vec_x);
+    //chartView->chart()->createDefaultAxes();
+    chartView->chart()->addAxis(axisX_1,Qt::AlignBottom);
+    chartView->chart()->addAxis(axisY_1,Qt::AlignLeft);
+    serie_vec_x->attachAxis(axisX_1);
+    serie_vec_x->attachAxis(axisY_1);
+    axisX_1->setTickCount(21);
+    axisX_1->setRange(0, 10);
+    axisY_1->setRange(-20, 20);
 
-    QtCharts::QChartView* chartView2 = new QtCharts::QChartView();
+    // Add some datas
+    serie_vec_x->append(0, 6);
+    serie_vec_x->append(2, 4);
+
+    // To add something to the series
+    qreal x_scroll = chartView->chart()->plotArea().width() / axisX_1->tickCount();
+    qreal x_decal = (axisX_1->max() - axisX_1->min()) / axisX_1->tickCount();
+    qreal m_x = 4 + x_decal;
+    qreal m_y = 15;
+    serie_vec_x->append(m_x, m_y);
+    chartView->chart()->scroll(x_scroll, 0);
+
+
     QtCharts::QLineSeries* series2 = new QtCharts::QLineSeries();
-    series2->append(-10, 10);
+    series2->append(10, 10);
     series2->append(0, 0);
     QtCharts::QPolarChart* polar = new QtCharts::QPolarChart();
     polar->addSeries(series2);
     polar->createDefaultAxes();
+
+    /*
+    // Doesn't work
+    QtCharts::QValueAxis *angularAxis = new QtCharts::QValueAxis(); // Add axis 1
+    angularAxis->setTickCount(9);
+    angularAxis->setLabelFormat("%.1f");
+    angularAxis->setShadesVisible(true);
+    angularAxis->setShadesBrush(QBrush(QColor(249, 249, 255)));
+    polar->addAxis(angularAxis, QtCharts::QPolarChart::PolarOrientationAngular);
+    QtCharts::QValueAxis *radialAxis = new QtCharts::QValueAxis(); // Add axis 2
+    radialAxis->setTickCount(9);
+    radialAxis->setLabelFormat("%d");
+    polar->addAxis(radialAxis, QtCharts::QPolarChart::PolarOrientationRadial);
+    */
+    QtCharts::QChartView* chartView2 = new QtCharts::QChartView();
     chartView2->setChart(polar);
-    series2->append(5, 5);
+
 
     ui->graphLayout->addWidget(chartView);
     ui->graphLayout->addWidget(chartView2);
