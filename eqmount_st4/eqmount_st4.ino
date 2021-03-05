@@ -17,7 +17,7 @@
 #define ENCODER_PIN_DT 11 // KY-040 encoder
 #define ENCODER_PIN_SW 13
 
-#include "../eqmount2/eqmount.hpp"
+#include "eqmount.hpp"
 
 #ifndef __AVR_ATmega168__
 #warning "OLED pinout may not be correct on your board (23(I2C TX) 24(I2C CLK))"
@@ -27,16 +27,12 @@
 #define OLED_PIN_CLK 24 // Pin for I2C communication (you can write/use software I2C if you want)
 #define OLED_PIN_TX 23 // cf OLED_PIN_CLK
 
-#define xstr(a) str(a) // xstr(ENCODER_DEFAULT_VALUE) = "940"
-#define str(a) #a // str(ENCODER_DEFAULT_VALUE) = "ENCODER_DEFAULT_VALUE"
-#define ENCODER_DEFAULT_VALUE 940
-#define ENCODER_DEFAULT_VALUE_STR xstr(ENCODER_DEFAULT_VALUE)
+#define xstr(a) str(a)
+#define str(a) #a
+#define DEFAULT_SIDERAL_DELAY 25270 // In theory should be: TR_MIN_TO_DELAY(0.1) = 25270
+// Experiments: 26260 too slow/5min
+// 26255, little bit slow ? Bests results so far
 
-#define DEFAULT_SIDERAL_DELAY 26253 // Experimental: 94.5% of value given by TR_MIN_TO_DELAY(0.1)
-// TODO: change with 26260 too slow/5min: trying 26255, little bit slow ? Bests results so far
-// Trying 26250
-
-//#define DEFAULT_SIDERAL_DELAY 25338 // Default value = TR_MIN_TO_DELAY(0.1)
 #define DEFAULT_SIDERAL_DELAY_STR xstr(DEFAULT_SIDERAL_DELAY)
 // My telescope requires 1 turn per 10min
 // Max speed: 1:3.7 4300us/step Full
@@ -80,11 +76,12 @@ void wait_motor_stop() {
 }
 
 void setup() {
-    Serial.begin(9600);
+    Serial.begin(57600, SERIAL_8N1);
     while (!Serial);
     Serial.setTimeout(500);
+    Serial.println("INITIALIZED#");
 
-    Serial.println("Eqmount2 V1 Exp.");
+    //Serial.println("Eqmount2 V1 Exp.");
 
     eq_setup();
 
@@ -144,9 +141,17 @@ void loop() {
 
     // In mode_1 use the rotary encoder to adjust the motor speed
     if (mode == 0) {
-        if (Serial.available() > 0) {
-            // TODO: enter tracking
-            Serial.flush();
+        bool serialAvailable = Serial.available() > 0;
+        if (serialAvailable) {
+            String tmp = Serial.readStringUntil('#');
+            if (tmp.equals("CONNECT")) {
+                mode = 1;
+                display_title_mode_1();
+                eq_gotospeed(DEFAULT_SIDERAL_DELAY);
+                display.printFixed(0,  3*8, "+ inf", STYLE_NORMAL);
+                display.printFixed(6*8,  3*8, DEFAULT_SIDERAL_DELAY_STR, STYLE_NORMAL);
+                Serial.print("OK#");
+            }
         }
     }
     else if (mode == 1) {
@@ -174,8 +179,38 @@ void loop() {
         // Or falling edge of encoderclk
         if (serialAvailable || (encoderclk_last == HIGH && encoderclk == LOW)) {
             if (serialAvailable) {
-                long tmp = Serial.parseInt(SKIP_ALL);
-                targetPeriod += tmp;
+                //String tmp = Serial.readString();
+                String tmp = Serial.readStringUntil('#');
+                // Commands sent by Arduino-S (INDI) are:
+                // DISCONNECT# - Disconnect
+                // DEC+# - Guide north (DEC)
+                // DEC-# - Guide south (DEC)
+                // RA+# - Guide East (RA)
+                // RA-# - Guide West (RA)
+                // DEC0# - DEC axis back to normal speed
+                // RA0# - RA axis back to normal speed
+                if (tmp.equals("DISCONNECT")) {
+                    //targetPeriod = DEFAULT_SIDERAL_DELAY;
+                    mode = 0;
+                    display_title_mode_0();
+                    if (timer_running) {
+                        eq_stop_async();
+                        wait_motor_stop();
+                    }
+                    Serial.print("OK#");
+                } else if (tmp.equals("RA0")) {
+                    targetPeriod = DEFAULT_SIDERAL_DELAY;
+                    Serial.print("OK#");
+                } else if (tmp.equals("RA+")) {
+                    targetPeriod -= encoder_step;
+                    Serial.print("OK#");
+                } else if (tmp.equals("RA-")) {
+                    targetPeriod += encoder_step;
+                    Serial.print("OK#");
+                } else {
+                    Serial.flush();
+                }
+                
             } else {
                 if (encoderdt == HIGH) {
                     targetPeriod -= encoder_step;
@@ -197,11 +232,9 @@ void loop() {
         // Encoder
         unsigned int encoderclk = digitalRead(ENCODER_PIN_CLK);
         unsigned int encoderdt = digitalRead(ENCODER_PIN_DT);
-        bool serialAvailable = Serial.available() > 0;
 
-        // Check for new motor speed sent via Serial connection
-        // Or falling edge of encoderclk
-        if (serialAvailable || (encoderclk_last == HIGH && encoderclk == LOW)) {
+        // Check for falling edge of encoderclk
+        if (encoderclk_last == HIGH && encoderclk == LOW) {
             if (encoderdt == HIGH) {
                 slew_counter++;
             } else {
