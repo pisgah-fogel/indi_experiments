@@ -6,6 +6,10 @@
 #include <cmath>
 #include <memory>
 
+// TODO: implement guiding
+// cf https://www.indilib.org/api/classMountDriver.html#details
+// cf https://www.indilib.org/api/classINDI_1_1GuiderInterface.html
+
 // TODO: use indicom library to communicate with the arduino
 
 static std::unique_ptr<Eqmount2> sEqMount(new Eqmount2());
@@ -147,6 +151,7 @@ bool Eqmount2::SetTrackRate(double raRate, double deRate)
     // deRate	DEC tracking rate in arcsecs/s
     // Return true if successfull
     LOGF_INFO("Set Track rate RA: %d - DEC: %d", raRate, deRate);
+    std::cout<<"Set Track rate RA: "<<raRate<<" - DEC: "<<deRate<<std::endl;
     return true;
 }
 

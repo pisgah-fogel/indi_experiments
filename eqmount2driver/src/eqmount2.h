@@ -2,9 +2,13 @@
 
 #define SIMULATION
 
+// TODO: Inherit from MountDriver (for AZ_mount)
+#include "defaultdevice.h"
+#include "indiguiderinterface.h"
+#include <mount_driver.h> 
 #include "inditelescope.h"
 
-class Eqmount2 : public INDI::Telescope
+class Eqmount2 : public MountDriver // Same as INDI::Telescope, INDI::GuiderInterface
 {
   public:
     Eqmount2();
