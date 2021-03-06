@@ -153,6 +153,12 @@ void loop() {
     else if (mode == 1) {
         if(!digitalRead(ENCODER_PIN_SW)) {
             if (encoder_step == 1) {
+                encoder_step = 2;
+            } else if (encoder_step == 2) {
+                encoder_step = 5;
+            } else if (encoder_step == 5) {
+                encoder_step = 10;
+            } else if (encoder_step == 10) {
                 encoder_step = 100;
             } else if (encoder_step == 100) {
                 encoder_step = 1000;
