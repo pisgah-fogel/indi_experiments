@@ -273,6 +273,7 @@ void MainWindow::scanDirectory() {
             QImage tmp;
             RawToQImage(&image_a, &tmp);
             imageLabel->setPixmap(QPixmap::fromImage(tmp));
+            MainWindow::redGreenStackingChangeImage(&tmp);
 
             openFit(filetoprocess, &image_b);
             stackImageWithImage_b();
@@ -655,7 +656,9 @@ void MainWindow::callback_openFile() {
 }
 
 void MainWindow::stackImageWithImage_b() {
-    QImage tmp = imageLabel->pixmap()->toImage();
+    //QImage tmp = imageLabel->pixmap()->toImage(); // Works but get quite messy with time + poor guiding
+    QImage tmp;
+    RawToQImage(&image_a, &tmp);
 
     if (tmp.width() != image_b.width || tmp.height() != image_b.height) {
         std::cout<<"Cannot stack images, they are not the same size"<<std::endl;

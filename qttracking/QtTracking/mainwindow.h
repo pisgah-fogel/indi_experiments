@@ -130,5 +130,6 @@ private:
     QtCharts::QLineSeries* mSerie_vec_y; // For Y deviation in between images
     QtCharts::QValueAxis *mAxisX_1;
     QtCharts::QValueAxis *mAxisY_1;
+    qreal count_graph_entry = 6;
 };
 #endif // MAINWINDOW_H
