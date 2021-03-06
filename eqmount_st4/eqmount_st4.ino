@@ -132,12 +132,6 @@ void loop() {
         display.printFixed(0,  3*8, "+ inf", STYLE_NORMAL);
         display.printFixed(6*8,  3*8, DEFAULT_SIDERAL_DELAY_STR, STYLE_NORMAL);
     }
-    if (!digitalRead(BUTTON_PIN_2)  && mode != 2) // It is a pullup
-    {
-        mode = 2;
-        display_title_mode_2();
-        display.printFixed(0,  3*8, "0       ", STYLE_NORMAL);
-    }
 
     // In mode_1 use the rotary encoder to adjust the motor speed
     if (mode == 0) {
@@ -151,6 +145,8 @@ void loop() {
                 display.printFixed(0,  3*8, "+ inf", STYLE_NORMAL);
                 display.printFixed(6*8,  3*8, DEFAULT_SIDERAL_DELAY_STR, STYLE_NORMAL);
                 Serial.print("OK#");
+            } else {
+                Serial.flush();
             }
         }
     }
@@ -199,13 +195,13 @@ void loop() {
                     }
                     Serial.print("OK#");
                 } else if (tmp.equals("RA0")) {
-                    targetPeriod = DEFAULT_SIDERAL_DELAY;
+                    guiding = 0;
                     Serial.print("OK#");
                 } else if (tmp.equals("RA+")) {
-                    targetPeriod -= encoder_step;
+                    guiding -= encoder_step;
                     Serial.print("OK#");
                 } else if (tmp.equals("RA-")) {
-                    targetPeriod += encoder_step;
+                    guiding += encoder_step;
                     Serial.print("OK#");
                 } else {
                     Serial.flush();
@@ -227,72 +223,7 @@ void loop() {
 
         ltoa(newPeriod, buffer, 10);
         display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
-    } else if (mode == 2)
-    {
-        // Encoder
-        unsigned int encoderclk = digitalRead(ENCODER_PIN_CLK);
-        unsigned int encoderdt = digitalRead(ENCODER_PIN_DT);
-
-        // Check for falling edge of encoderclk
-        if (encoderclk_last == HIGH && encoderclk == LOW) {
-            if (encoderdt == HIGH) {
-                slew_counter++;
-            } else {
-                slew_counter--;
-            }
-            itoa(slew_counter, buffer, 10);
-            display.printFixed(0,  3*8, "        ", STYLE_NORMAL); // clear line
-            display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
-        }
-        encoderclk_last = encoderclk;
-
-        if(!digitalRead(ENCODER_PIN_SW))
-        {
-            display.printFixed(0,  0, "Release button ", STYLE_NORMAL);
-            delay(1000);
-            if(slew_counter < 0) {
-                if (!dir_counterclockwise()) {
-                    display.printFixed(0,  0, "Changing direction ", STYLE_NORMAL);
-                    eq_stop_async();
-                    wait_motor_stop();
-                }
-                dir_counterclockwise();
-                display.printFixed(0,  0, "Going back...     ", STYLE_NORMAL);
-                eq_gotospeed(SLEW_SPEED);
-                long target_steps = steps + slew_counter*SLEW_STEPS;
-                while (steps > target_steps && digitalRead(ENCODER_PIN_SW)) { // switch encoder to abord
-                    ltoa(steps-target_steps, buffer, 10);
-                    display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
-                    delay(500);
-                }
-                display.printFixed(0,  0, "Done, now tracking", STYLE_NORMAL);
-                eq_stop_async();
-                wait_motor_stop();
-                dir_clockwise(); // Avoid problem if other functions do not expect counterwise...
-                delay(500); // Try to make sure we are going in the right direction
-                dir_clockwise();
-                delay(500);
-                eq_gotospeed(DEFAULT_SIDERAL_DELAY); // Now tracking; TODO: Not working !!!
-                display_title_mode_2();
-            } else if (slew_counter > 0) {
-                display.printFixed(0,  0, "Going forward...  ", STYLE_NORMAL);
-                dir_clockwise();
-                eq_gotospeed(SLEW_SPEED);
-                long target_steps = steps + slew_counter*SLEW_STEPS;
-                while (steps < target_steps && digitalRead(ENCODER_PIN_SW)) { // switch encoder to abord
-                    ltoa(target_steps-steps, buffer, 10);
-                    display.printFixed(0,  3*8, buffer, STYLE_NORMAL);
-                    delay(500);
-                }
-                display.printFixed(0,  0, "Done, back to trck.", STYLE_NORMAL);
-                //eq_stop_async();
-                //wait_motor_stop();
-                eq_gotospeed(DEFAULT_SIDERAL_DELAY); // Now tracking
-                display_title_mode_2();
-            }
-        }
     }
-    
 
     // TODO: GPS (get clock and position)
 

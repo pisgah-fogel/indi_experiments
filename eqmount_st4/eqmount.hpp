@@ -52,6 +52,8 @@ long steps = 0;
 
 unsigned long targetPeriod = MAX_PERIOD_HZ; // period the user wants
 
+long guiding = 0;
+
 // Call dir_clockwise() / dir_counterclockwise() to set it
 unsigned char direction = 0; // 0 = clockwise, 1 = counterclockwise
 
@@ -63,6 +65,8 @@ inline void _update_newPeriod() {
         steps ++;
     else
         steps --;
+
+    targetPeriod += guiding;
 
     // Proportional
     //float remaining = ((float)newPeriod - (float)targetPeriod)*(float)newPeriod*(float)newPeriod; // > 0 when acc.
