@@ -16,6 +16,7 @@
 
 
 void MainWindow::createGraph() {
+    mChartMaxMin = 2.f;
     mAxisX_1 = new QtCharts::QValueAxis();
     mAxisY_1 = new QtCharts::QValueAxis();
     mChartView = new QtCharts::QChartView();
@@ -32,7 +33,7 @@ void MainWindow::createGraph() {
     mSerie_vec_y->attachAxis(mAxisY_1);
     mAxisX_1->setTickCount(21);
     mAxisX_1->setRange(0, 10);
-    mAxisY_1->setRange(-20, 20);
+    mAxisY_1->setRange(-mChartMaxMin, mChartMaxMin);
 
     // Add some datas
     mSerie_vec_x->append(0, 0);
@@ -57,6 +58,16 @@ void MainWindow::addValueToGraph(float vec_x, float vec_y) {
     qreal x_decal = (mAxisX_1->max() - mAxisX_1->min()) / mAxisX_1->tickCount();
     qreal m_x = count_graph_entry;
     count_graph_entry += 0.5;
+    if (vec_x > mChartMaxMin) {
+        mChartMaxMin = vec_x;
+        mAxisY_1->setMax(mChartMaxMin);
+        mAxisY_1->setMin(-mChartMaxMin);
+    }
+    if (vec_y > mChartMaxMin) {
+        mChartMaxMin = vec_y;
+        mAxisY_1->setMax(mChartMaxMin);
+        mAxisY_1->setMin(-mChartMaxMin);
+    }
     mSerie_vec_x->append(m_x, vec_x);
     mSerie_vec_y->append(m_x, vec_y);
     mChartView->chart()->scroll(30, 0);

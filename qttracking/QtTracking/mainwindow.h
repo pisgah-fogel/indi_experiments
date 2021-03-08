@@ -131,5 +131,6 @@ private:
     QtCharts::QValueAxis *mAxisX_1;
     QtCharts::QValueAxis *mAxisY_1;
     qreal count_graph_entry = 6;
+    float mChartMaxMin;
 };
 #endif // MAINWINDOW_H

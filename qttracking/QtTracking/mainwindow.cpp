@@ -485,10 +485,10 @@ void listStars(std::vector<Rectf>* out_boxes, std::vector<Point2f>* out_centers,
     std::cout<<"Skipped single pixel star "<<single_pixel_star<<std::endl;
 }
 
-std::vector<Feature> matchStarsBruteForce(std::vector<Point2f>* point1, std::vector<Point2f>* pointref) {
+std::vector<Feature> matchStarsBruteForce(std::vector<Point2f>* point1, std::vector<Point2f>* pointref, float maxdistance) {
     std::vector<Feature> movement_vector;
     for (std::vector<Point2f>::iterator it = point1->begin(); it != point1->end(); it++) {
-        float smallest_distance = 10000000;
+        float smallest_distance = maxdistance;
         Point2f* best_match;
         for (std::vector<Point2f>::iterator it2 = pointref->begin(); it2 != pointref->end(); it2++) {
             float distance = (it->x - it2->x) * (it->x - it2->x) + (it->y - it2->y) * (it->y - it2->y);
@@ -497,7 +497,7 @@ std::vector<Feature> matchStarsBruteForce(std::vector<Point2f>* point1, std::vec
                 smallest_distance = distance;
             }
         }
-        if (smallest_distance < 10000000) {
+        if (smallest_distance < maxdistance) {
             Feature tmp;
             tmp.origin = *it;
             tmp.destination = *best_match;
@@ -525,7 +525,12 @@ void MainWindow::measureVectorBtwImages() {
 
     listStars(NULL, &points2, image_b, PIXVAL_THRESHOLD*avg2);
 
-    mFeatures = matchStarsBruteForce(&points1, &points2);
+    mFeatures = matchStarsBruteForce(&points1, &points2, 64);
+
+    if (mFeatures.size() <= 0) {
+        std::cout<<"No star matches"<<std::endl;
+        return;
+    }
 
     double sum_x = 0, sum_y = 0;
     for (std::vector<Feature>::iterator it = mFeatures.begin(); it != mFeatures.end(); it++) {
@@ -542,20 +547,25 @@ void MainWindow::measureVectorBtwImages() {
     int skipped = 0;
     std::vector<Feature> FilteredFeatures;
     for (std::vector<Feature>::iterator it = mFeatures.begin(); it != mFeatures.end(); it++) {
-        std::cout<<"Vector x:"<<it->vector.x<<" y:"<<it->vector.y<<std::endl;
+        //std::cout<<"Vector x:"<<it->vector.x<<" y:"<<it->vector.y<<std::endl;
         if (abs(it->vector.x - avg_x) > skip_threshold) {
-            std::cout<<"x too high/low"<<std::endl;
+            //std::cout<<"x too high/low"<<std::endl;
             skipped++;
             continue;
         }
         else if (abs(it->vector.y - avg_y) > skip_threshold) {
-            std::cout<<"y too high/low"<<std::endl;
+            //std::cout<<"y too high/low"<<std::endl;
             skipped++;
             continue;
         }
         FilteredFeatures.push_back(*it);
         sum_x += it->vector.x;
         sum_y += it->vector.y;
+    }
+
+    if (FilteredFeatures.size() <= 0) {
+        std::cout<<"No star matches - after filtering"<<std::endl;
+        return;
     }
 
     avg_x = (float)sum_x / (float)FilteredFeatures.size();
