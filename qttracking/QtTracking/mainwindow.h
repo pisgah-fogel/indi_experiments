@@ -7,6 +7,10 @@
 #include <QPainter>
 #include <QtCharts>
 
+#include "qlabelimage.h"
+
+class LabelImage;
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
@@ -98,7 +102,7 @@ private slots:
     void scanDirectory();
 private:
     void stackImageWithImage_b();
-    static bool openFit(QString filename, RawImage *image);
+    static bool openFit(QString filename, RawImage *image, int binding);
     static void RawToQImage(RawImage* raw, QImage* qimage);
     static void computeBWfromRawImage(RawImage* rawimg);
     void measureVectorBtwImages();
@@ -113,7 +117,7 @@ private:
     void addValueToGraph(float vec_x, float vec_y);
 
     Ui::MainWindow *ui;
-    QLabel *imageLabel;
+    LabelImage *imageLabel;
     QScrollArea *scrollArea;
     RawImage image_a; // reference image
     RawImage image_b; // "new" image

@@ -13,10 +13,12 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     polarChart.cpp \
+    qlabelimage.cpp \
     redGreenStacking.cpp
 
 HEADERS += \
-    mainwindow.h
+    mainwindow.h \
+    qlabelimage.h
 
 FORMS += \
     mainwindow.ui

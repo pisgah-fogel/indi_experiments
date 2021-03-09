@@ -21,7 +21,7 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
-    , imageLabel(new QLabel)
+    , imageLabel(new LabelImage)
     , scrollArea(new QScrollArea)
 {
 
@@ -67,7 +67,7 @@ void MainWindow::RawToQImage(RawImage* raw, QImage* qimage) {
     }
 }
 
-bool MainWindow::openFit(QString filename, RawImage* rawimg) {
+bool MainWindow::openFit(QString filename, RawImage* rawimg, int binding=4) {
     fitsfile *fptr;
     char card[FLEN_CARD];
     int status = 0, nkeys, ii;
@@ -136,34 +136,42 @@ bool MainWindow::openFit(QString filename, RawImage* rawimg) {
         return false;
     }
 
-    unsigned char *rarray = (unsigned char *)malloc(size_x*size_y); // Red channel
-    unsigned char *garray = (unsigned char *)malloc(size_x*size_y); // Green channel
-    unsigned char *barray = (unsigned char *)malloc(size_x*size_y); // Blue channel
-    long fpixel [3]; // Size: NAXIS
+    unsigned char *rarray = (unsigned char *)malloc((size_x/binding)*(size_y/binding)); // Red channel
+    unsigned char *garray = (unsigned char *)malloc((size_x/binding)*(size_y/binding)); // Green channel
+    unsigned char *barray = (unsigned char *)malloc((size_x/binding)*(size_y/binding)); // Blue channel
+    long fpixel [] = {1, 1, 1}; // Size: NAXIS
     // fpixel[0] goes from 1 to NAXIS1
     // fpixel[1] goes from 1 to NAXIS2
     int anynul;
-    fpixel[0] = fpixel[1] = 1;
-    fpixel[2] = 1;
+
+    long lpixel [] = {size_x, size_y, 1};
+    long inc [] = {binding, binding, 1};
+    ret = ffgsv (fptr, TBYTE, fpixel, lpixel, inc,
+           NULL, rarray, &anynul, &status);
+/*
     ret = ffgpxv(fptr, TBYTE, fpixel,
                 size_x*size_y, NULL, rarray,
-                &anynul, &status);
-    fpixel[0] = fpixel[1] = 1;
+                &anynul, &status);*/
     fpixel[2] = 2;
-    ret = ffgpxv(fptr, TBYTE, fpixel,
+    lpixel[2] = 2;
+    ret = ffgsv (fptr, TBYTE, fpixel, lpixel, inc,
+           NULL, garray, &anynul, &status);
+    /*ret = ffgpxv(fptr, TBYTE, fpixel,
                 size_x*size_y, NULL, garray,
-                &anynul, &status);
-    fpixel[0] = fpixel[1] = 1;
+                &anynul, &status);*/
     fpixel[2] = 3;
-    ret = ffgpxv(fptr, TBYTE, fpixel,
+    lpixel[2] = 3;
+    /*ret = ffgpxv(fptr, TBYTE, fpixel,
                 size_x*size_y, NULL, barray,
-                &anynul, &status);
+                &anynul, &status);*/
+    ret = ffgsv (fptr, TBYTE, fpixel, lpixel, inc,
+           NULL, barray, &anynul, &status);
 
     if (status)
     fits_report_error(stderr, status);
 
-    rawimg->width = size_x;
-    rawimg->height = size_y;
+    rawimg->width = size_x/binding;
+    rawimg->height = size_y/binding;
     if (rawimg->red != NULL)
         free(rawimg->red);
     if (rawimg->green != NULL)
@@ -443,7 +451,7 @@ Rectf getStarBoundary(RawImage &rawimg, int x, int y, unsigned int thrld) {
     }
     result.w = tmpx - result.x;
 
-    std::cout<<"Star x:"<<result.x<<" y:"<<result.y<<" w"<<result.w<<" h"<<result.h<<std::endl;
+    //std::cout<<"Star x:"<<result.x<<" y:"<<result.y<<" w"<<result.w<<" h"<<result.h<<std::endl;
 
     return result;
 }
@@ -677,6 +685,7 @@ void MainWindow::stackImageWithImage_b() {
 
     QImage tmp2;
     RawToQImage(&image_b, &tmp2);
+    MainWindow::redGreenStackingChangeImage(&tmp2);
 
     for(int x(0); x < tmp.width(); x++) {
         for(int y (0); y < tmp.height(); y++) {
@@ -702,7 +711,11 @@ void MainWindow::stackImageWithImage_b() {
         }
     }
 
+    //imageLabel->setPixmap(QPixmap::fromImage(tmp));
     imageLabel->setPixmap(QPixmap::fromImage(tmp));
+    imageLabel->adjustSize();
+    imageLabel->setScaledContents(true);
+    stretchImage(imageLabel, 30);
 }
 
 MainWindow::~MainWindow()
