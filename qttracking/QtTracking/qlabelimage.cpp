@@ -23,8 +23,8 @@ void LabelImage::drawPointer() {
 
     if (zoomedLabel != NULL && mOririn != NULL && mOririn->bw != NULL) {
         QImage qimage;
-        MainWindow::RawToQImageRect(mOririn, &qimage, getSelectionRect());
-        //this->setPixmap(QPixmap::fromImage(qimage));
+        MainWindow::RawToQImageRectBW(mOririn, &qimage, getSelectionRect()); // Black and White
+        //MainWindow::RawToQImageRect(mOririn, &qimage, getSelectionRect()); // Color
         zoomedLabel->setPixmap(QPixmap::fromImage(qimage));
     }
 }

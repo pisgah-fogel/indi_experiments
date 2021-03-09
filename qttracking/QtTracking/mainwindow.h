@@ -95,6 +95,7 @@ public:
     void createActions();
     void stretchImage(QLabel* label, float intensity);
     static void RawToQImageRect(RawImage* raw, QImage* qimage, QRect rect);
+    static void RawToQImageRectBW(RawImage* raw, QImage* qimage, QRect rect);
 private slots:
     void callback_openFile();
     void callback_openFile_compare();

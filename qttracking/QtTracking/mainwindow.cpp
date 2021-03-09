@@ -82,6 +82,20 @@ void MainWindow::RawToQImageRect(RawImage* raw, QImage* qimage, QRect rect) {
     }
 }
 
+void MainWindow::RawToQImageRectBW(RawImage* raw, QImage* qimage, QRect rect) {
+    if (raw->red == NULL || raw->blue == NULL || raw->green == NULL) {
+        std::cout<<"Error: MainWindow::RawToQImage: Raw image is empty"<<std::endl;
+        return;
+    }
+    *qimage = QPixmap(rect.width(), rect.height()).toImage();
+
+    for(size_t x(rect.x()), x2(0); x < size_t(rect.x()+rect.width()); x++, x2++) {
+        for(size_t y (rect.y()), y2(0); y < size_t(rect.y()+rect.height()); y++, y2++) {
+            qimage->setPixelColor(x2, y2, QColor(raw->bw[y*raw->width + x], raw->bw[y*raw->width + x], raw->bw[y*raw->width + x]));
+        }
+    }
+}
+
 bool MainWindow::openFitRect(QString filename, RawImage* rawimg, QRect rect, int binding=4) {
     fitsfile *fptr;
     int status = 0, nkeys;
@@ -315,9 +329,12 @@ void MainWindow::computeBWfromRawImage(RawImage* rawimg) {
 
     for(size_t x(0); x < rawimg->width; x++) {
         for(size_t y (0); y < rawimg->height; y++) {
-            rawimg->bw[y*rawimg->width + x] = rawimg->red[y*rawimg->width + x] +
-                2*rawimg->green[y*rawimg->width + x] +
-                rawimg->blue[y*rawimg->width + x];
+            unsigned int val = rawimg->red[y*rawimg->width + x] +
+                    2*rawimg->green[y*rawimg->width + x] +
+                    rawimg->blue[y*rawimg->width + x];
+            if (val > 255)
+                val = 255;
+            rawimg->bw[y*rawimg->width + x] = (unsigned char)val;
         }
     }
 }
