@@ -21,7 +21,7 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
-    , imageLabel(new LabelImage)
+    , imageLabel(new LabelImage(&image_a))
     , scrollArea(new QScrollArea)
 {
 
@@ -30,6 +30,7 @@ MainWindow::MainWindow(QWidget *parent)
     imageLabel->setBackgroundRole(QPalette::Base);
     imageLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
     imageLabel->setScaledContents(true);
+    imageLabel->setZoomedLabel(ui->zoomed);
 
     scrollArea->setBackgroundRole(QPalette::Dark);
     scrollArea->setWidget(imageLabel);
@@ -67,9 +68,123 @@ void MainWindow::RawToQImage(RawImage* raw, QImage* qimage) {
     }
 }
 
+void MainWindow::RawToQImageRect(RawImage* raw, QImage* qimage, QRect rect) {
+    if (raw->red == NULL || raw->blue == NULL || raw->green == NULL) {
+        std::cout<<"Error: MainWindow::RawToQImage: Raw image is empty"<<std::endl;
+        return;
+    }
+    *qimage = QPixmap(rect.width(), rect.height()).toImage();
+
+    for(size_t x(rect.x()), x2(0); x < size_t(rect.x()+rect.width()); x++, x2++) {
+        for(size_t y (rect.y()), y2(0); y < size_t(rect.y()+rect.height()); y++, y2++) {
+            qimage->setPixelColor(x2, y2, QColor(raw->red[y*raw->width + x], raw->green[y*raw->width + x], raw->blue[y*raw->width + x]));
+        }
+    }
+}
+
+bool MainWindow::openFitRect(QString filename, RawImage* rawimg, QRect rect, int binding=4) {
+    fitsfile *fptr;
+    int status = 0, nkeys;
+
+    // Open the file
+    auto begin = std::chrono::high_resolution_clock::now();
+    QFileInfo fileinfo(filename);
+    if (!fileinfo.exists() || !fileinfo.isFile() || !fileinfo.isReadable()) {
+        std::cout<<"Error: Cannot read file"<<std::endl;
+        return false;
+    }
+
+    fits_open_file(&fptr, fileinfo.absoluteFilePath().toStdString().c_str(), READONLY, &status);
+    fits_get_hdrspace(fptr, &nkeys, NULL, &status);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::cout << "Open file: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count() << "ns" << std::endl;
+
+    // Read every pixel, stretch resize and display
+    int bitpix;
+    int ret = fits_get_img_type(fptr, &bitpix, &status);
+    if (ret != 0) {
+        std::cout << "Error: could not determine depth" << std::endl;
+        fits_close_file(fptr, &status);
+        return false;
+    }
+    if (bitpix != 8) {
+        std::cout << "Warning: Only 8 bits images have been tested" << std::endl;
+        fits_close_file(fptr, &status);
+        return false;
+    }
+
+    int naxis;
+    ret = fits_get_img_dim(fptr, &naxis, &status);
+    if (ret != 0) {
+        std::cout << "Error: could not determe how many channels are in the image" << std::endl;
+        fits_close_file(fptr, &status);
+        return false;
+    }
+
+    long naxes[3];
+    ret = fits_get_img_size(fptr, naxis /*maxdim*/, naxes, &status);
+    if (ret != 0) {
+        std::cout << "Error: could not determe how many channels are in the image" << std::endl;
+        fits_close_file(fptr, &status);
+        return false;
+    }
+
+    int size_x = naxes[0], size_y = naxes[1];
+
+    if (naxes[2] != 3) {
+        std::cout<<"Error: only 3 channels images are supported, this one is "<<naxes<<std::endl;
+        fits_close_file(fptr, &status);
+        return false;
+    }
+
+    int result_size_x = rect.width();
+    int result_size_y = rect.height();
+    unsigned char *rarray = (unsigned char *)malloc((result_size_x)*(result_size_y)); // Red channel
+    unsigned char *garray = (unsigned char *)malloc((result_size_x)*(result_size_y)); // Green channel
+    unsigned char *barray = (unsigned char *)malloc((result_size_x)*(result_size_y)); // Blue channel
+    long fpixel [] = {rect.x()+1, rect.y()+1, 1};
+    int anynul;
+
+    long lpixel [] = {fpixel[0]+result_size_x*binding, fpixel[1]+result_size_y*binding, 1};
+    long inc [] = {binding, binding, 1};
+    ret = ffgsv (fptr, TBYTE, fpixel, lpixel, inc,
+           NULL, rarray, &anynul, &status);
+
+    fpixel[2] = 2;
+    lpixel[2] = 2;
+    ret = ffgsv (fptr, TBYTE, fpixel, lpixel, inc,
+           NULL, garray, &anynul, &status);
+
+    fpixel[2] = 3;
+    lpixel[2] = 3;
+
+    ret = ffgsv (fptr, TBYTE, fpixel, lpixel, inc,
+           NULL, barray, &anynul, &status);
+
+    if (status)
+    fits_report_error(stderr, status);
+
+    rawimg->width = result_size_x;
+    rawimg->height = result_size_y;
+    if (rawimg->red != NULL)
+        free(rawimg->red);
+    if (rawimg->green != NULL)
+        free(rawimg->green);
+    if (rawimg->blue != NULL)
+        free(rawimg->blue);
+
+    rawimg->red = rarray;
+    rawimg->green = garray;
+    rawimg->blue = barray;
+    computeBWfromRawImage(rawimg);
+
+    fits_close_file(fptr, &status);
+    return true;
+}
+
 bool MainWindow::openFit(QString filename, RawImage* rawimg, int binding=4) {
     fitsfile *fptr;
-    char card[FLEN_CARD];
+    //char card[FLEN_CARD];
     int status = 0, nkeys, ii;
 
     // Open the file
@@ -86,6 +201,7 @@ bool MainWindow::openFit(QString filename, RawImage* rawimg, int binding=4) {
     std::cout << "Open file: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count() << "ns" << std::endl;
 
     // List every meta data
+    /*
     begin = std::chrono::high_resolution_clock::now();
     for (ii = 1; ii <= nkeys; ii++)
     {
@@ -94,6 +210,7 @@ bool MainWindow::openFit(QString filename, RawImage* rawimg, int binding=4) {
     }
     end = std::chrono::high_resolution_clock::now();
     std::cout << "Read META: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count() << "ns" << std::endl;
+    */
 
     // Read every pixel, stretch resize and display
     int bitpix;
@@ -454,6 +571,47 @@ Rectf getStarBoundary(RawImage &rawimg, int x, int y, unsigned int thrld) {
     //std::cout<<"Star x:"<<result.x<<" y:"<<result.y<<" w"<<result.w<<" h"<<result.h<<std::endl;
 
     return result;
+}
+
+void findStarInRect(std::vector<Rectf>* out_boxes, std::vector<Point2f>* out_centers,
+                    RawImage &grayimg, float threshold, QRect box) {
+    if (box.x() < 0 || box.y() <0 || box.x()+box.width()>grayimg.width || box.y()+box.height()>grayimg.height) {
+        std::cout<<"Error: Box position is Invalid"<<std::endl;
+        return;
+    }
+
+    uint8_t thrld = (uint8_t) threshold;
+    std::cout << "Star threshold is "<<(unsigned int)thrld<<std::endl;
+    size_t single_pixel_star = 0;
+    for(size_t x(box.x()); x < (size_t)(box.x()+box.width()); x++) {
+        for(size_t y (box.y()); y < (size_t)(box.y()+box.height()); y++) {
+            if (grayimg.bw[y*grayimg.width + x] > thrld) {
+                Rectf tmp = getStarBoundary(grayimg, x, y, thrld);
+
+                if (tmp.w == 0 && tmp.h == 0) {
+                    single_pixel_star ++;
+                    continue;
+                }
+
+                Point2f center = Point2f(tmp.x + tmp.w/2, tmp.y + tmp.h/2);
+
+                x += tmp.w + MIN_DISTANCE_BETWEEN_STARS;
+                y += tmp.h + MIN_DISTANCE_BETWEEN_STARS;
+
+                if (out_boxes != NULL)
+                    out_boxes->push_back(tmp);
+                if (out_centers != NULL)
+                    out_centers->push_back(center);
+            }
+        }
+    }
+
+    if (out_boxes != NULL)
+    std::cout<<out_boxes->size()<<" stars detected"<<std::endl;
+    else if (out_centers != NULL)
+    std::cout<<out_centers->size()<<" stars detected"<<std::endl;
+
+    std::cout<<"Skipped single pixel star "<<single_pixel_star<<std::endl;
 }
 
 void listStars(std::vector<Rectf>* out_boxes, std::vector<Point2f>* out_centers,

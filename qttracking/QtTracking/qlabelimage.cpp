@@ -3,9 +3,10 @@
 #include <QMouseEvent>
 #include <iostream>
 
-LabelImage::LabelImage()
+LabelImage::LabelImage(RawImage *origin)
 {
-
+    mOririn = origin;
+    zoomedLabel = NULL;
 }
 
 void LabelImage::drawPointer() {
@@ -13,12 +14,19 @@ void LabelImage::drawPointer() {
     QPainter qPainter(&tmp);
     QPen pen(Qt::red);
     qPainter.setBrush(Qt::NoBrush);
-    pen.setWidth(10);
+    pen.setWidth(1);
     qPainter.setPen(pen);
     qPainter.drawPoint(pointer);
     qPainter.drawRect(pointer.x()-window_size/2, pointer.y()-window_size/2, window_size, window_size);
     qPainter.end();
     this->setPixmap(QPixmap::fromImage(tmp));
+
+    if (zoomedLabel != NULL && mOririn != NULL && mOririn->bw != NULL) {
+        QImage qimage;
+        MainWindow::RawToQImageRect(mOririn, &qimage, getSelectionRect());
+        //this->setPixmap(QPixmap::fromImage(qimage));
+        zoomedLabel->setPixmap(QPixmap::fromImage(qimage));
+    }
 }
 
 void LabelImage::mousePressEvent ( QMouseEvent * event ) {
@@ -28,6 +36,10 @@ void LabelImage::mousePressEvent ( QMouseEvent * event ) {
         pointer = QPointF(x, y);
         drawPointer();
     }
+}
+
+QRect LabelImage::getSelectionRect() {
+    return QRect(pointer.x()-window_size/2, pointer.y()-window_size/2, window_size, window_size);
 }
 
 void LabelImage::fromRaw(RawImage* raw) {

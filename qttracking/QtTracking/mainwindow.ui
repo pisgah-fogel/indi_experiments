@@ -51,7 +51,7 @@
        <bool>false</bool>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="tab">
        <property name="sizePolicy">
@@ -108,7 +108,7 @@
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout">
             <item>
-             <widget class="QLabel" name="label">
+             <widget class="QLabel" name="zoomed">
               <property name="text">
                <string>Zoomed View</string>
               </property>
