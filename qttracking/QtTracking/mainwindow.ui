@@ -110,7 +110,14 @@
             <item>
              <widget class="QLabel" name="zoomed">
               <property name="text">
-               <string>Zoomed View</string>
+               <string>Zoomed View Reference</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="zoomedcompare">
+              <property name="text">
+               <string>Zoomed View compare</string>
               </property>
              </widget>
             </item>

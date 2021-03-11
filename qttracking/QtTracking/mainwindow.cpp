@@ -922,6 +922,10 @@ void MainWindow::callback_openFile_compare() {
     if (openFitRect(dialog.selectedFiles().first(), &image_b, imageLabel->getSelectionRect())) {
         //stackImageWithImage_b();
         measureVectorBtwImagesBox();
+        // TODO: display small rect
+        QImage tmpimage;
+        RawToQImageRect(&image_b, &tmpimage, imageLabel->getSelectionRect()); // Black and White
+        ui->zoomedcompare->setPixmap(QPixmap::fromImage(tmpimage));
         drawDebug();
     } else {
         std::cout<<"Error: Open FITS failed"<<std::endl;
