@@ -69,14 +69,22 @@ public:
         bw = NULL;
     }
     ~RawImage() {
-        if (blue != NULL)
+        if (blue != NULL) {
             free(blue);
-        if (red != NULL)
+            blue = NULL;
+        }
+        if (red != NULL) {
             free(red);
-        if (green != NULL)
+            red = NULL;
+        }
+        if (green != NULL) {
             free(green);
-        if (bw != NULL)
+            green = NULL;
+        }
+        if (bw != NULL) {
             free(bw);
+            bw = NULL;
+        }
     }
     size_t width, height;
     uint8_t* red;
@@ -109,6 +117,7 @@ private:
     static void RawToQImage(RawImage* raw, QImage* qimage);
     static void computeBWfromRawImage(RawImage* rawimg);
     void measureVectorBtwImages();
+    void measureVectorBtwImagesBox();
 
     void createPolarChart();
     void addPointToPolarChart(float x, float y);

@@ -100,6 +100,12 @@ bool MainWindow::openFitRect(QString filename, RawImage* rawimg, QRect rect, int
     fitsfile *fptr;
     int status = 0, nkeys;
 
+    if (rect.x() < 0 || rect.y() < 0) {
+        // TODO: display in GUI
+        std::cout<<"Please select a valid star region"<<std::endl;
+        return false;
+    }
+
     // Open the file
     auto begin = std::chrono::high_resolution_clock::now();
     QFileInfo fileinfo(filename);
@@ -153,13 +159,24 @@ bool MainWindow::openFitRect(QString filename, RawImage* rawimg, QRect rect, int
 
     int result_size_x = rect.width();
     int result_size_y = rect.height();
-    unsigned char *rarray = (unsigned char *)malloc((result_size_x)*(result_size_y)); // Red channel
-    unsigned char *garray = (unsigned char *)malloc((result_size_x)*(result_size_y)); // Green channel
-    unsigned char *barray = (unsigned char *)malloc((result_size_x)*(result_size_y)); // Blue channel
-    long fpixel [] = {rect.x()+1, rect.y()+1, 1};
+    // TODO: check required array size
+    std::cout<<"Each channel takes (Crop) "<<(result_size_x)*(result_size_y)+1<<"o"<<std::endl;
+    unsigned char *rarray = (unsigned char *)malloc((result_size_x)*(result_size_y)+1); // Red channel
+    unsigned char *garray = (unsigned char *)malloc((result_size_x)*(result_size_y)+1); // Green channel
+    unsigned char *barray = (unsigned char *)malloc((result_size_x)*(result_size_y)+1); // Blue channel
+
+
+    long pixel_min_x = 1 + rect.x()*binding;
+    long pixel_min_y = 1 + rect.y()*binding;
+    long pixel_max_x = pixel_min_x+result_size_x*binding - 1;
+    long pixel_max_y = pixel_min_y+result_size_y*binding - 1;
+    std::cout<<"FITS Window: x:"<<pixel_min_x<<" y:"<<pixel_min_y<<std::endl;
+    std::cout<<"             x:"<<pixel_max_x<<" y:"<<pixel_max_y<<std::endl;
+
+    long fpixel [] = {pixel_min_x, pixel_min_y, 1, 0 /*First dimension to be read*/};
     int anynul;
 
-    long lpixel [] = {fpixel[0]+result_size_x*binding, fpixel[1]+result_size_y*binding, 1};
+    long lpixel [] = {pixel_max_x, pixel_max_y, 1, 1 /*Last dimension to be read*/};
     long inc [] = {binding, binding, 1};
     ret = ffgsv (fptr, TBYTE, fpixel, lpixel, inc,
            NULL, rarray, &anynul, &status);
@@ -180,12 +197,18 @@ bool MainWindow::openFitRect(QString filename, RawImage* rawimg, QRect rect, int
 
     rawimg->width = result_size_x;
     rawimg->height = result_size_y;
-    if (rawimg->red != NULL)
+    if (rawimg->red != NULL) {
         free(rawimg->red);
-    if (rawimg->green != NULL)
+        rawimg->red = NULL;
+    }
+    if (rawimg->green != NULL) {
         free(rawimg->green);
-    if (rawimg->blue != NULL)
+        rawimg->green = NULL;
+    }
+    if (rawimg->blue != NULL) {
         free(rawimg->blue);
+        rawimg->blue = NULL;
+    }
 
     rawimg->red = rarray;
     rawimg->green = garray;
@@ -267,15 +290,16 @@ bool MainWindow::openFit(QString filename, RawImage* rawimg, int binding=4) {
         return false;
     }
 
+    std::cout<<"Each channel takes (full image) "<<(size_x/binding)*(size_y/binding)<<"o"<<std::endl;
     unsigned char *rarray = (unsigned char *)malloc((size_x/binding)*(size_y/binding)); // Red channel
     unsigned char *garray = (unsigned char *)malloc((size_x/binding)*(size_y/binding)); // Green channel
     unsigned char *barray = (unsigned char *)malloc((size_x/binding)*(size_y/binding)); // Blue channel
-    long fpixel [] = {1, 1, 1}; // Size: NAXIS
+    long fpixel [] = {1, 1, 1, 0}; // Size: NAXIS
     // fpixel[0] goes from 1 to NAXIS1
     // fpixel[1] goes from 1 to NAXIS2
     int anynul;
 
-    long lpixel [] = {size_x, size_y, 1};
+    long lpixel [] = {size_x, size_y, 1, 1}; // TODO: Size before binding ?
     long inc [] = {binding, binding, 1};
     ret = ffgsv (fptr, TBYTE, fpixel, lpixel, inc,
            NULL, rarray, &anynul, &status);
@@ -303,12 +327,18 @@ bool MainWindow::openFit(QString filename, RawImage* rawimg, int binding=4) {
 
     rawimg->width = size_x/binding;
     rawimg->height = size_y/binding;
-    if (rawimg->red != NULL)
+    if (rawimg->red != NULL) {
         free(rawimg->red);
-    if (rawimg->green != NULL)
+        rawimg->red = NULL;
+    }
+    if (rawimg->green != NULL) {
         free(rawimg->green);
-    if (rawimg->blue != NULL)
+        rawimg->green = NULL;
+    }
+    if (rawimg->blue != NULL) {
         free(rawimg->blue);
+        rawimg->blue = NULL;
+    }
 
     rawimg->red = rarray;
     rawimg->green = garray;
@@ -323,9 +353,13 @@ bool MainWindow::openFit(QString filename, RawImage* rawimg, int binding=4) {
 }
 
 void MainWindow::computeBWfromRawImage(RawImage* rawimg) {
-    if (rawimg->bw != NULL)
+    if (rawimg->bw != NULL) {
         free(rawimg->bw);
-    rawimg->bw = (uint8_t*)malloc(rawimg->width*rawimg->height);
+        rawimg->bw = NULL;
+    }
+
+    std::cout<<"BW channel takes "<<size_t(rawimg->width*rawimg->height+1)<<"o"<<std::endl;
+    rawimg->bw = (uint8_t*)malloc(size_t(rawimg->width*rawimg->height+1));
 
     for(size_t x(0); x < rawimg->width; x++) {
         for(size_t y (0); y < rawimg->height; y++) {
@@ -416,11 +450,10 @@ void MainWindow::scanDirectory() {
             RawToQImage(&image_a, &tmp);
             imageLabel->setPixmap(QPixmap::fromImage(tmp));
             MainWindow::redGreenStackingChangeImage(&tmp);
-
-            openFit(filetoprocess, &image_b);
+            openFitRect(filetoprocess, &image_b, imageLabel->getSelectionRect());
             stackImageWithImage_b();
             stretchImage(imageLabel, 30);
-            measureVectorBtwImages();
+            measureVectorBtwImagesBox();
             drawDebug();
         }
     }
@@ -466,6 +499,17 @@ float getImgAveragePixel(RawImage* rawimg) {
     }
     // TODO: store average value so I do not calculate it each time ?
     return (float)sum/(float)(rawimg->width*rawimg->height);
+}
+
+float getImgAveragePixelRect(RawImage* rawimg, QRect rect) {
+    unsigned long long int sum = 0;
+    for(size_t x(rect.x()); x < (size_t)(rect.x() + rect.width()); x++) {
+        for(size_t y (rect.y()); y < (size_t)(rect.y() + rect.height()); y++) {
+            sum += rawimg->bw[y*rawimg->width + x];
+        }
+    }
+    // TODO: store average value so I do not calculate it each time ?
+    return (float)sum/(float)(rect.width()*rect.height());
 }
 
 Rectf getStarBoundary(RawImage &rawimg, int x, int y, unsigned int thrld) {
@@ -762,6 +806,94 @@ void MainWindow::measureVectorBtwImages() {
     addValueToGraph(avg_x, avg_y);
 }
 
+void MainWindow::measureVectorBtwImagesBox() {
+    QRect box = imageLabel->getSelectionRect();
+    // Detect features, Measure star's movement between images
+    std::vector<Point2f> points1, points2;
+
+    float avg1;
+    if (box.width() <= image_a.width) {
+        avg1 = getImgAveragePixel(&image_a);
+    } else {
+        avg1 = getImgAveragePixelRect(&image_a, box);
+    }
+    std::cout << "Average IMGA is "<<avg1<<std::endl;
+
+    float avg2;
+    if (box.width() <= image_b.width) {
+        avg2 = getImgAveragePixel(&image_b);
+    } else {
+        avg2 = getImgAveragePixelRect(&image_b, box);
+    }
+    std::cout << "Average IMGB is "<<avg2<<std::endl;
+
+    // Apply threshold and detect star's boundary when threshold is reached
+    if (size_t(box.width()) <= image_a.width) {
+        listStars(NULL, &points1, image_a, PIXVAL_THRESHOLD*avg1);
+    } else {
+        findStarInRect(NULL, &points1, image_a, PIXVAL_THRESHOLD*avg1, box);
+    }
+
+    if (size_t(box.width()) <= image_b.width) {
+        listStars(NULL, &points2, image_b, PIXVAL_THRESHOLD*avg2);
+    } else {
+        findStarInRect(NULL, &points2, image_b, PIXVAL_THRESHOLD*avg2, box);
+    }
+
+    mFeatures = matchStarsBruteForce(&points1, &points2, 64);
+
+    if (mFeatures.size() <= 0) {
+        std::cout<<"No star matches"<<std::endl;
+        return;
+    }
+
+    double sum_x = 0, sum_y = 0;
+    for (std::vector<Feature>::iterator it = mFeatures.begin(); it != mFeatures.end(); it++) {
+        sum_x += it->vector.x;
+        sum_y += it->vector.y;
+    }
+    float avg_x = (float)sum_x / (float)mFeatures.size();
+    float avg_y = (float)sum_y / (float)mFeatures.size();
+    std::cout<<"Average before filtering x:"<<avg_x<<" y:"<<avg_y<<std::endl;
+
+    // Filtering
+    sum_x = 0, sum_y = 0;
+    const float skip_threshold = 15.f;
+    int skipped = 0;
+    std::vector<Feature> FilteredFeatures;
+    for (std::vector<Feature>::iterator it = mFeatures.begin(); it != mFeatures.end(); it++) {
+        //std::cout<<"Vector x:"<<it->vector.x<<" y:"<<it->vector.y<<std::endl;
+        if (abs(it->vector.x - avg_x) > skip_threshold) {
+            //std::cout<<"x too high/low"<<std::endl;
+            skipped++;
+            continue;
+        }
+        else if (abs(it->vector.y - avg_y) > skip_threshold) {
+            //std::cout<<"y too high/low"<<std::endl;
+            skipped++;
+            continue;
+        }
+        FilteredFeatures.push_back(*it);
+        sum_x += it->vector.x;
+        sum_y += it->vector.y;
+    }
+
+    if (FilteredFeatures.size() <= 0) {
+        std::cout<<"No star matches - after filtering"<<std::endl;
+        return;
+    }
+
+    avg_x = (float)sum_x / (float)FilteredFeatures.size();
+    avg_y = (float)sum_y / (float)FilteredFeatures.size();
+    std::cout<<"Filtered Average x:"<<avg_x<<" y:"<<avg_y<<std::endl;
+
+    std::cout<<FilteredFeatures.size()<<"/" << mFeatures.size() << "vectors kept after filtering"<<std::endl;
+    mFeatures = FilteredFeatures;
+
+    addPointToPolarChart(avg_x, avg_y);
+    addValueToGraph(avg_x, avg_y);
+}
+
 void MainWindow::callback_openFile_compare() {
     QFileDialog dialog(this, tr("Open File"));
     static bool firstDialog = true;
@@ -787,9 +919,9 @@ void MainWindow::callback_openFile_compare() {
     // TODO: QProgressDialog
     this->update();
 
-    if (openFit(dialog.selectedFiles().first(), &image_b)) {
-        stackImageWithImage_b();
-        measureVectorBtwImages();
+    if (openFitRect(dialog.selectedFiles().first(), &image_b, imageLabel->getSelectionRect())) {
+        //stackImageWithImage_b();
+        measureVectorBtwImagesBox();
         drawDebug();
     } else {
         std::cout<<"Error: Open FITS failed"<<std::endl;
