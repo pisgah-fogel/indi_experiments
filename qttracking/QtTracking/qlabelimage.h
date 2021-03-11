@@ -14,11 +14,12 @@ public:
     void fromRaw(RawImage* raw);
     void drawPointer();
     QPointF pointer;
-    unsigned int window_size = 128;
+    unsigned int window_size = 64;
     QRect getSelectionRect();
     void setZoomedLabel(QLabel* label) {
         zoomedLabel = label;
     }
+    void moveRect(qreal x, qreal y);
 private:
     RawImage* mOririn;
     QLabel* zoomedLabel;

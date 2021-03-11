@@ -103,9 +103,11 @@ public:
     void createActions();
     void stretchImage(QLabel* label, float intensity);
     static void RawToQImageRect(RawImage* raw, QImage* qimage, QRect rect);
-    static void RawToQImageRectBW(RawImage* raw, QImage* qimage, QRect rect);
+    static bool RawToQImageRectBW(RawImage* raw, QImage* qimage, QRect rect);
     static void RawToQImage(RawImage* raw, QImage* qimage);
     static void RawToQImageBW(RawImage* raw, QImage* qimage);
+    void DisplayRawImage_zoomed(RawImage*);
+    void DisplayRawImage_zoomedRef(RawImage*);
 private slots:
     void callback_openFile();
     void callback_openFile_compare();
@@ -119,6 +121,8 @@ private:
     static void computeBWfromRawImage(RawImage* rawimg);
     void measureVectorBtwImages();
     void measureVectorBtwImagesBox();
+    void DisplayRawImage_zoomedcompare(RawImage*);
+    void DisplayRawImage_imageLabel(RawImage *);
 
     void createPolarChart();
     void addPointToPolarChart(float x, float y);

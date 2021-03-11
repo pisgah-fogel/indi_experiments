@@ -22,10 +22,11 @@ void LabelImage::drawPointer() {
     this->setPixmap(QPixmap::fromImage(tmp));
 
     if (zoomedLabel != NULL && mOririn != NULL && mOririn->bw != NULL) {
+        // TODO: create subset from this->pixmap() because mOrigin will not exist animore
         QImage qimage;
-        MainWindow::RawToQImageRectBW(mOririn, &qimage, getSelectionRect()); // Black and White
-        //MainWindow::RawToQImageRect(mOririn, &qimage, getSelectionRect()); // Color
-        zoomedLabel->setPixmap(QPixmap::fromImage(qimage));
+        if (MainWindow::RawToQImageRectBW(mOririn, &qimage, getSelectionRect())) // Black and White
+            //MainWindow::RawToQImageRect(mOririn, &qimage, getSelectionRect()); // Color
+            zoomedLabel->setPixmap(QPixmap::fromImage(qimage));
     }
 }
 
@@ -40,6 +41,11 @@ void LabelImage::mousePressEvent ( QMouseEvent * event ) {
 
 QRect LabelImage::getSelectionRect() {
     return QRect(pointer.x()-window_size/2, pointer.y()-window_size/2, window_size, window_size);
+}
+
+void LabelImage::moveRect(qreal x, qreal y) {
+    pointer.setX(x);
+    pointer.setY(y);
 }
 
 void LabelImage::fromRaw(RawImage* raw) {

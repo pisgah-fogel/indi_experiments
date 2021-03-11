@@ -110,6 +110,13 @@
             <item>
              <widget class="QLabel" name="zoomed">
               <property name="text">
+               <string>Interractive Zoom</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="zoomedRef">
+              <property name="text">
                <string>Zoomed View Reference</string>
               </property>
              </widget>

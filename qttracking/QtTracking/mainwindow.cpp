@@ -14,7 +14,7 @@
 #include <QPolarChart>
 #include <QValueAxis>
 
-#define PIXVAL_THRESHOLD 10 // number of time the average pixel value
+#define PIXVAL_THRESHOLD 0.8 // number of time the average pixel value
 #define MIN_DISTANCE_BETWEEN_STARS 10
 #define MAX_STEPS 100 // Max "Size" of a star (in pixel)
 
@@ -34,6 +34,10 @@ MainWindow::MainWindow(QWidget *parent)
     ui->zoomed->setBackgroundRole(QPalette::Base);
     ui->zoomed->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
     ui->zoomed->setScaledContents(true);
+
+    ui->zoomedRef->setBackgroundRole(QPalette::Base);
+    ui->zoomedRef->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    ui->zoomedRef->setScaledContents(true);
 
     imageLabel->setBackgroundRole(QPalette::Base);
     imageLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
@@ -55,16 +59,52 @@ MainWindow::MainWindow(QWidget *parent)
     createGraph();
 
     createPolarChart();
+}
 
-    openFitRect("/home/phileas/Pictures/orion_soir_9/Light/Light_30_secs_2021-03-06T21-46-15_001.fits", &image_b, QRect(787, 155, 128, 128), 4);
+/*
+ * Example:
+ * openFitRect("/home/phileas/Pictures/orion_soir_9/Light/Light_30_secs_2021-03-06T21-46-15_001.fits", &image_b, QRect(787, 155, 128, 128), 4);
+ * DisplayRawImage_zoomedcompare(&image_b);
+ */
+void MainWindow::DisplayRawImage_zoomedcompare(RawImage *ptr) {
+    if (ptr->width != size_t(imageLabel->getSelectionRect().width()) || ptr->height != size_t(imageLabel->getSelectionRect().height())) {
+        std::cout<<"Error: MainWindow::DisplayRawImage_zoomedcompare: rawimage's width or height does not match the selection"<<std::endl;
+    }
     QImage tmpimage;
-    RawToQImageBW(&image_b, &tmpimage); // Black and White
+    RawToQImageBW(ptr, &tmpimage); // Black and White
     ui->zoomedcompare->setPixmap(QPixmap::fromImage(tmpimage));
+}
 
-    ///M66_Light_60_secs_2021-02-22T01-36-58_002.fits
-    ///M66_Light_60_secs_2021-02-22T01-38-10_003.fits
-    //openFit("/home/phileas/Pictures/M66_soir_4/Light/M66_Light_60_secs_2021-02-22T01-36-58_002.fits");
-    //resize(QGuiApplication::primaryScreen()->availableSize() * 3 / 5);
+void MainWindow::DisplayRawImage_zoomed(RawImage *ptr) {
+    if (ptr->width != size_t(imageLabel->getSelectionRect().width()) || ptr->height != size_t(imageLabel->getSelectionRect().height())) {
+        std::cout<<"Error: MainWindow::DisplayRawImage_zoomedcompare: rawimage's width or height does not match the selection"<<std::endl;
+    }
+    QImage tmpimage;
+    RawToQImageBW(ptr, &tmpimage); // Black and White
+    ui->zoomed->setPixmap(QPixmap::fromImage(tmpimage));
+}
+
+// Meant to display a full FIT in the main imageLabel
+void MainWindow::DisplayRawImage_imageLabel(RawImage *ptr) {
+    QImage tmp;
+    RawToQImage(ptr, &tmp);
+    imageLabel->setPixmap(QPixmap::fromImage(tmp));
+    scrollArea->setVisible(true);
+    imageLabel->adjustSize();
+    imageLabel->setScaledContents(true);
+    scrollArea->setWidgetResizable(true); // Fit the image to window
+    //MainWindow::redGreenStackingChangeImage(&tmp);
+    stretchImage(imageLabel, 30);
+
+}
+
+void MainWindow::DisplayRawImage_zoomedRef(RawImage *ptr) {
+    if (ptr->width != size_t(imageLabel->getSelectionRect().width()) || ptr->height != size_t(imageLabel->getSelectionRect().height())) {
+        std::cout<<"Error: MainWindow::DisplayRawImage_zoomedcompare: rawimage's width or height does not match the selection"<<std::endl;
+    }
+    QImage tmpimage;
+    RawToQImageBW(ptr, &tmpimage); // Black and White
+    ui->zoomedRef->setPixmap(QPixmap::fromImage(tmpimage));
 }
 
 void MainWindow::RawToQImage(RawImage* raw, QImage* qimage) {
@@ -109,11 +149,16 @@ void MainWindow::RawToQImageRect(RawImage* raw, QImage* qimage, QRect rect) {
     }
 }
 
-void MainWindow::RawToQImageRectBW(RawImage* raw, QImage* qimage, QRect rect) {
+bool MainWindow::RawToQImageRectBW(RawImage* raw, QImage* qimage, QRect rect) {
     if (raw->red == NULL || raw->blue == NULL || raw->green == NULL) {
-        std::cout<<"Error: MainWindow::RawToQImage: Raw image is empty"<<std::endl;
-        return;
+        std::cout<<"Error: MainWindow::RawToQImageRectBW: Raw image is empty"<<std::endl;
+        return false;
     }
+    if (size_t(rect.x()+rect.width()) > raw->width || size_t(rect.y()+rect.height()) > raw->height) {
+        std::cout<<"Error: MainWindow::RawToQImageRectBW: Raw image is too small for this selection"<<std::endl;
+        return false;
+    }
+
     *qimage = QPixmap(rect.width(), rect.height()).toImage();
 
     for(size_t x(rect.x()), x2(0); x < size_t(rect.x()+rect.width()); x++, x2++) {
@@ -121,6 +166,7 @@ void MainWindow::RawToQImageRectBW(RawImage* raw, QImage* qimage, QRect rect) {
             qimage->setPixelColor(x2, y2, QColor(raw->bw[y*raw->width + x], raw->bw[y*raw->width + x], raw->bw[y*raw->width + x]));
         }
     }
+    return true;
 }
 
 bool MainWindow::openFitRect(QString filename, RawImage* rawimg, QRect rect, int binding=4) {
@@ -130,7 +176,7 @@ bool MainWindow::openFitRect(QString filename, RawImage* rawimg, QRect rect, int
 
     if (rect.x() < 0 || rect.y() < 0) {
         // TODO: display in GUI
-        std::cout<<"Please select a valid star region"<<std::endl;
+        std::cout<<"Error: Please select a valid star region"<<std::endl;
         return false;
     }
 
@@ -460,27 +506,20 @@ void MainWindow::scanDirectory() {
             // Considere the image as our reference
             // TODO
             openFit(filetoprocess, &image_a);
-            QImage tmp;
-            RawToQImage(&image_a, &tmp);
-            imageLabel->setPixmap(QPixmap::fromImage(tmp));
-            scrollArea->setVisible(true);
-            imageLabel->adjustSize();
-            imageLabel->setScaledContents(true);
-            scrollArea->setWidgetResizable(true); // Fit the image to window
-            stretchImage(imageLabel, 30);
+            DisplayRawImage_imageLabel(&image_a);
         } else {
-            // move image_b to image_a and do as if image_b was empty
             if (!image_b.empty()) {
+             // move image_b to image_a and do as if image_b was empty
              image_a = image_b;
              image_b = RawImage();
+             //DisplayRawImage_zoomed(&image_a);
+             DisplayRawImage_zoomedRef(&image_a);
             }
-            QImage tmp;
-            RawToQImage(&image_a, &tmp);
-            imageLabel->setPixmap(QPixmap::fromImage(tmp));
-            MainWindow::redGreenStackingChangeImage(&tmp);
+
+            //load only a subset of image_b in order to compare it with image_a
             openFitRect(filetoprocess, &image_b, imageLabel->getSelectionRect());
-            stackImageWithImage_b();
-            stretchImage(imageLabel, 30);
+            DisplayRawImage_zoomedcompare(&image_b);
+
             measureVectorBtwImagesBox();
             drawDebug();
         }
@@ -662,18 +701,14 @@ Rectf getStarBoundary(RawImage &rawimg, int x, int y, unsigned int thrld) {
     return result;
 }
 
-void findStarInRect(std::vector<Rectf>* out_boxes, std::vector<Point2f>* out_centers,
-                    RawImage &grayimg, float threshold, QRect box) {
-    if (box.x() < 0 || box.y() <0 || box.x()+box.width()>grayimg.width || box.y()+box.height()>grayimg.height) {
-        std::cout<<"Error: Box position is Invalid"<<std::endl;
-        return;
-    }
-
+void listStars(std::vector<Rectf>* out_boxes, std::vector<Point2f>* out_centers,
+               RawImage &grayimg, float threshold)
+{
     uint8_t thrld = (uint8_t) threshold;
     std::cout << "Star threshold is "<<(unsigned int)thrld<<std::endl;
     size_t single_pixel_star = 0;
-    for(size_t x(box.x()); x < (size_t)(box.x()+box.width()); x++) {
-        for(size_t y (box.y()); y < (size_t)(box.y()+box.height()); y++) {
+    for(size_t x(0); x < grayimg.width; x++) {
+        for(size_t y (0); y < grayimg.height; y++) {
             if (grayimg.bw[y*grayimg.width + x] > thrld) {
                 Rectf tmp = getStarBoundary(grayimg, x, y, thrld);
 
@@ -703,14 +738,20 @@ void findStarInRect(std::vector<Rectf>* out_boxes, std::vector<Point2f>* out_cen
     std::cout<<"Skipped single pixel star "<<single_pixel_star<<std::endl;
 }
 
-void listStars(std::vector<Rectf>* out_boxes, std::vector<Point2f>* out_centers,
-               RawImage &grayimg, float threshold)
-{
+
+void findStarInRect(std::vector<Rectf>* out_boxes, std::vector<Point2f>* out_centers,
+                    RawImage &grayimg, float threshold, QRect box) {
+    if (box.x() < 0 || box.y() <0 || box.x()+box.width()>grayimg.width || box.y()+box.height()>grayimg.height) {
+        std::cout<<"Warning: findStarInRect: Box position is Invalid"<<std::endl;
+        listStars(out_boxes, out_centers, grayimg, threshold);
+        return;
+    }
+
     uint8_t thrld = (uint8_t) threshold;
     std::cout << "Star threshold is "<<(unsigned int)thrld<<std::endl;
     size_t single_pixel_star = 0;
-    for(size_t x(0); x < grayimg.width; x++) {
-        for(size_t y (0); y < grayimg.height; y++) {
+    for(size_t x(box.x()); x < (size_t)(box.x()+box.width()); x++) {
+        for(size_t y (box.y()); y < (size_t)(box.y()+box.height()); y++) {
             if (grayimg.bw[y*grayimg.width + x] > thrld) {
                 Rectf tmp = getStarBoundary(grayimg, x, y, thrld);
 
@@ -840,7 +881,7 @@ void MainWindow::measureVectorBtwImagesBox() {
     std::vector<Point2f> points1, points2;
 
     float avg1;
-    if (box.width() <= image_a.width) {
+    if (size_t(box.x() + box.width()) <= image_a.width) {
         avg1 = getImgAveragePixel(&image_a);
     } else {
         avg1 = getImgAveragePixelRect(&image_a, box);
@@ -848,7 +889,7 @@ void MainWindow::measureVectorBtwImagesBox() {
     std::cout << "Average IMGA is "<<avg1<<std::endl;
 
     float avg2;
-    if (box.width() <= image_b.width) {
+    if (size_t(box.x() + box.width()) <= image_b.width) {
         avg2 = getImgAveragePixel(&image_b);
     } else {
         avg2 = getImgAveragePixelRect(&image_b, box);
@@ -856,19 +897,21 @@ void MainWindow::measureVectorBtwImagesBox() {
     std::cout << "Average IMGB is "<<avg2<<std::endl;
 
     // Apply threshold and detect star's boundary when threshold is reached
-    if (size_t(box.width()) <= image_a.width) {
+    if (size_t(box.x() + box.width()) <= image_a.width) {
         listStars(NULL, &points1, image_a, PIXVAL_THRESHOLD*avg1);
     } else {
         findStarInRect(NULL, &points1, image_a, PIXVAL_THRESHOLD*avg1, box);
     }
 
-    if (size_t(box.width()) <= image_b.width) {
+    if (size_t(box.x() + box.width()) <= image_b.width) {
         listStars(NULL, &points2, image_b, PIXVAL_THRESHOLD*avg2);
     } else {
         findStarInRect(NULL, &points2, image_b, PIXVAL_THRESHOLD*avg2, box);
     }
 
     mFeatures = matchStarsBruteForce(&points1, &points2, 64);
+
+    std::cout<<"Matched stars "<<mFeatures.size()<<std::endl;
 
     if (mFeatures.size() <= 0) {
         std::cout<<"No star matches"<<std::endl;
@@ -920,9 +963,18 @@ void MainWindow::measureVectorBtwImagesBox() {
 
     addPointToPolarChart(avg_x, avg_y);
     addValueToGraph(avg_x, avg_y);
+
+    imageLabel->moveRect(box.x()+points2.at(0).x-box.width()/2, box.y()+points2.at(0).y-box.height()/2);
 }
 
 void MainWindow::callback_openFile_compare() {
+
+    if (image_a.empty()) {
+        // TODO: GUI error
+        std::cout<<"Error: MainWindow::callback_openFile_compare: Please open a file before"<<std::endl;
+        return;
+    }
+
     QFileDialog dialog(this, tr("Open File"));
     static bool firstDialog = true;
 
@@ -947,16 +999,23 @@ void MainWindow::callback_openFile_compare() {
     // TODO: QProgressDialog
     this->update();
 
+    if (!image_b.empty()) {
+        // move image_b to image_a and do as if image_b was empty
+        image_a = image_b;
+        image_b = RawImage();
+        //DisplayRawImage_zoomed(&image_a);
+        DisplayRawImage_zoomedRef(&image_a);
+    }
+
     if (openFitRect(dialog.selectedFiles().first(), &image_b, imageLabel->getSelectionRect())) {
         //stackImageWithImage_b();
-        measureVectorBtwImagesBox();
+        //measureVectorBtwImagesBox();
+        measureVectorBtwImages();
         // TODO: display small rect
-        QImage tmpimage;
-        RawToQImageRect(&image_b, &tmpimage, imageLabel->getSelectionRect()); // Black and White
-        ui->zoomedcompare->setPixmap(QPixmap::fromImage(tmpimage));
+        DisplayRawImage_zoomedcompare(&image_b);
         drawDebug();
     } else {
-        std::cout<<"Error: Open FITS failed"<<std::endl;
+        std::cout<<"Error: MainWindow::callback_openFile_compare: Open FITS failed"<<std::endl;
     }
 }
 
@@ -1000,16 +1059,9 @@ void MainWindow::callback_openFile() {
         std::cout<<"Error: cannon open FITS file (reference)"<<std::endl;
         return;
     }
+
     // TODO: QProgressDialog
-    QImage tmp;
-    RawToQImage(&image_a, &tmp);
-    imageLabel->setPixmap(QPixmap::fromImage(tmp));
-    scrollArea->setVisible(true);
-    imageLabel->adjustSize();
-    imageLabel->setScaledContents(true);
-    scrollArea->setWidgetResizable(true); // Fit the image to window
-    stretchImage(imageLabel, 30);
-    MainWindow::redGreenStackingChangeImage(&tmp);
+    DisplayRawImage_imageLabel(&image_a);
 }
 
 void MainWindow::stackImageWithImage_b() {
