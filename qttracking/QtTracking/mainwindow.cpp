@@ -712,7 +712,7 @@ void listStars(std::vector<Rectf>* out_boxes, std::vector<Point2f>* out_centers,
             if (grayimg.bw[y*grayimg.width + x] > thrld) {
                 Rectf tmp = getStarBoundary(grayimg, x, y, thrld);
 
-                if (tmp.w == 0 && tmp.h == 0) {
+                if (tmp.w <= 1 && tmp.h <= 1) {
                     single_pixel_star ++;
                     continue;
                 }
@@ -964,7 +964,7 @@ void MainWindow::measureVectorBtwImagesBox() {
     addPointToPolarChart(avg_x, avg_y);
     addValueToGraph(avg_x, avg_y);
 
-    imageLabel->moveRect(box.x()+points2.at(0).x-box.width()/2, box.y()+points2.at(0).y-box.height()/2);
+    imageLabel->moveRect(box.x()+points2.at(0).x, box.y()+points2.at(0).y);
 }
 
 void MainWindow::callback_openFile_compare() {
@@ -1020,11 +1020,13 @@ void MainWindow::callback_openFile_compare() {
 }
 
 void MainWindow::drawDebug() {
-    QImage tmp = imageLabel->pixmap()->toImage();
+    if (ui->zoomedRef->pixmap() == NULL)
+        return;
+    QImage tmp = ui->zoomedRef->pixmap()->toImage();
     QPainter qPainter(&tmp);
     QPen pen(Qt::red);
     qPainter.setBrush(Qt::NoBrush);
-    pen.setWidth(10);
+    pen.setWidth(1);
     qPainter.setPen(pen);
     //painter.drawPoint(5,5);
     //qPainter.drawRect(100,100,200,200);
@@ -1032,7 +1034,7 @@ void MainWindow::drawDebug() {
         it->display(&qPainter);
     }
     qPainter.end();
-    imageLabel->setPixmap(QPixmap::fromImage(tmp));
+    ui->zoomedRef->setPixmap(QPixmap::fromImage(tmp));
 }
 
 void MainWindow::callback_openFile() {
