@@ -28,6 +28,7 @@ void MainWindow::createPolarChart()
     QPen pen(Qt::green);
     pen.setWidth(POLAR_LINE_WIDTH);
     qPainter.setPen(pen);
+    qPainter.fillRect(QRect(0, 0, POLAR_SIZE, POLAR_SIZE), Qt::black);
     qPainter.drawPoint(POLAR_SIZE/2,POLAR_SIZE/2);
     qPainter.drawRect(POLAR_SIZE/2-POLAR_AMPLIFICATION*POLAR_SQUARE_SIZE,
                       POLAR_SIZE/2-POLAR_AMPLIFICATION*POLAR_SQUARE_SIZE,
@@ -44,9 +45,12 @@ void MainWindow::addPointToPolarChart(float x, float y)
     QImage tmp = QPixmap(POLAR_SIZE, POLAR_SIZE).toImage();
     tmp.fill(Qt::black);
     QPainter qPainter(&tmp);
-    QPen pen(Qt::green);
+    QPen pen(Qt::black);
     pen.setWidth(POLAR_LINE_WIDTH);
     qPainter.setPen(pen); // qPainter has a copy of the pen
+    qPainter.fillRect(QRect(0, 0, POLAR_SIZE, POLAR_SIZE), Qt::black);
+    pen.setColor(Qt::green);
+    qPainter.setPen(pen);
     qPainter.drawPoint(POLAR_SIZE/2,POLAR_SIZE/2);
     qPainter.drawRect(POLAR_SIZE/2-POLAR_AMPLIFICATION*POLAR_SQUARE_SIZE,
                       POLAR_SIZE/2-POLAR_AMPLIFICATION*POLAR_SQUARE_SIZE,

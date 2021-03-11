@@ -27,6 +27,14 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->setupUi(this);
 
+    ui->zoomedcompare->setBackgroundRole(QPalette::Base);
+    ui->zoomedcompare->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    ui->zoomedcompare->setScaledContents(true);
+
+    ui->zoomed->setBackgroundRole(QPalette::Base);
+    ui->zoomed->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    ui->zoomed->setScaledContents(true);
+
     imageLabel->setBackgroundRole(QPalette::Base);
     imageLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
     imageLabel->setScaledContents(true);
@@ -48,6 +56,11 @@ MainWindow::MainWindow(QWidget *parent)
 
     createPolarChart();
 
+    openFitRect("/home/phileas/Pictures/orion_soir_9/Light/Light_30_secs_2021-03-06T21-46-15_001.fits", &image_b, QRect(787, 155, 128, 128), 4);
+    QImage tmpimage;
+    RawToQImageBW(&image_b, &tmpimage); // Black and White
+    ui->zoomedcompare->setPixmap(QPixmap::fromImage(tmpimage));
+
     ///M66_Light_60_secs_2021-02-22T01-36-58_002.fits
     ///M66_Light_60_secs_2021-02-22T01-38-10_003.fits
     //openFit("/home/phileas/Pictures/M66_soir_4/Light/M66_Light_60_secs_2021-02-22T01-36-58_002.fits");
@@ -64,6 +77,20 @@ void MainWindow::RawToQImage(RawImage* raw, QImage* qimage) {
     for(size_t x(0); x < raw->width; x++) {
         for(size_t y (0); y < raw->height; y++) {
             qimage->setPixelColor(x, y, QColor(raw->red[y*raw->width + x], raw->green[y*raw->width + x], raw->blue[y*raw->width + x]));
+        }
+    }
+}
+
+void MainWindow::RawToQImageBW(RawImage* raw, QImage* qimage) {
+    if (raw->red == NULL || raw->blue == NULL || raw->green == NULL) {
+        std::cout<<"Error: MainWindow::RawToQImageBW: Raw image is empty"<<std::endl;
+        return;
+    }
+    *qimage = QPixmap(raw->width, raw->height).toImage();
+
+    for(size_t x(0); x < raw->width; x++) {
+        for(size_t y (0); y < raw->height; y++) {
+            qimage->setPixelColor(x, y, QColor(raw->bw[y*raw->width + x], raw->bw[y*raw->width + x], raw->bw[y*raw->width + x]));
         }
     }
 }
@@ -97,6 +124,7 @@ void MainWindow::RawToQImageRectBW(RawImage* raw, QImage* qimage, QRect rect) {
 }
 
 bool MainWindow::openFitRect(QString filename, RawImage* rawimg, QRect rect, int binding=4) {
+    std::cout<<"openFitRect x:"<<rect.x()<<" y:"<<rect.y()<<" w:"<<rect.width()<<" h:"<<rect.height()<<" binding:"<<binding<<std::endl;
     fitsfile *fptr;
     int status = 0, nkeys;
 
@@ -165,18 +193,18 @@ bool MainWindow::openFitRect(QString filename, RawImage* rawimg, QRect rect, int
     unsigned char *garray = (unsigned char *)malloc((result_size_x)*(result_size_y)+1); // Green channel
     unsigned char *barray = (unsigned char *)malloc((result_size_x)*(result_size_y)+1); // Blue channel
 
-
     long pixel_min_x = 1 + rect.x()*binding;
     long pixel_min_y = 1 + rect.y()*binding;
-    long pixel_max_x = pixel_min_x+result_size_x*binding - 1;
-    long pixel_max_y = pixel_min_y+result_size_y*binding - 1;
+    long pixel_max_x = pixel_min_x+result_size_x*binding-1;
+    long pixel_max_y = pixel_min_y+result_size_y*binding-1;
+
     std::cout<<"FITS Window: x:"<<pixel_min_x<<" y:"<<pixel_min_y<<std::endl;
     std::cout<<"             x:"<<pixel_max_x<<" y:"<<pixel_max_y<<std::endl;
 
-    long fpixel [] = {pixel_min_x, pixel_min_y, 1, 0 /*First dimension to be read*/};
+    long fpixel [] = {pixel_min_x, pixel_min_y, 1, 1 /*First dimension to be read*/};
     int anynul;
 
-    long lpixel [] = {pixel_max_x, pixel_max_y, 1, 1 /*Last dimension to be read*/};
+    long lpixel [] = {pixel_max_x, pixel_max_y, 1, 2 /*Last dimension to be read*/};
     long inc [] = {binding, binding, 1};
     ret = ffgsv (fptr, TBYTE, fpixel, lpixel, inc,
            NULL, rarray, &anynul, &status);
@@ -294,13 +322,13 @@ bool MainWindow::openFit(QString filename, RawImage* rawimg, int binding=4) {
     unsigned char *rarray = (unsigned char *)malloc((size_x/binding)*(size_y/binding)); // Red channel
     unsigned char *garray = (unsigned char *)malloc((size_x/binding)*(size_y/binding)); // Green channel
     unsigned char *barray = (unsigned char *)malloc((size_x/binding)*(size_y/binding)); // Blue channel
-    long fpixel [] = {1, 1, 1, 0}; // Size: NAXIS
+    long fpixel [] = {1, 1, 1, 1}; // Size: NAXIS
     // fpixel[0] goes from 1 to NAXIS1
     // fpixel[1] goes from 1 to NAXIS2
     int anynul;
 
-    long lpixel [] = {size_x, size_y, 1, 1}; // TODO: Size before binding ?
-    long inc [] = {binding, binding, 1};
+    long lpixel [] = {size_x, size_y, 1, 2}; // TODO: Size before binding ?
+    long inc [] = {binding, binding, 1, 1};
     ret = ffgsv (fptr, TBYTE, fpixel, lpixel, inc,
            NULL, rarray, &anynul, &status);
 /*

@@ -104,6 +104,8 @@ public:
     void stretchImage(QLabel* label, float intensity);
     static void RawToQImageRect(RawImage* raw, QImage* qimage, QRect rect);
     static void RawToQImageRectBW(RawImage* raw, QImage* qimage, QRect rect);
+    static void RawToQImage(RawImage* raw, QImage* qimage);
+    static void RawToQImageBW(RawImage* raw, QImage* qimage);
 private slots:
     void callback_openFile();
     void callback_openFile_compare();
@@ -114,7 +116,6 @@ private:
     void stackImageWithImage_b();
     static bool openFit(QString filename, RawImage *image, int binding);
     static bool openFitRect(QString filename, RawImage* rawimg, QRect rect, int binding);
-    static void RawToQImage(RawImage* raw, QImage* qimage);
     static void computeBWfromRawImage(RawImage* rawimg);
     void measureVectorBtwImages();
     void measureVectorBtwImagesBox();
