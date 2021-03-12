@@ -20,9 +20,11 @@ public:
         zoomedLabel = label;
     }
     void moveRect(qreal x, qreal y);
+    QImage QImageSubset(QImage*);
 private:
     RawImage* mOririn;
     QLabel* zoomedLabel;
+    QPixmap savedMap;
 };
 
 #endif // QLABELIMAGE_H

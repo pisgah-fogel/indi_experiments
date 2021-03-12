@@ -101,7 +101,7 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     void createActions();
-    void stretchImage(QLabel* label, float intensity);
+    static void stretchImage(QLabel* label, float intensity);
     static void RawToQImageRect(RawImage* raw, QImage* qimage, QRect rect);
     static bool RawToQImageRectBW(RawImage* raw, QImage* qimage, QRect rect);
     static void RawToQImage(RawImage* raw, QImage* qimage);

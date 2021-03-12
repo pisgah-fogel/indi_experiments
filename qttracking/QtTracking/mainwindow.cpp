@@ -86,16 +86,11 @@ void MainWindow::DisplayRawImage_zoomed(RawImage *ptr) {
 
 // Meant to display a full FIT in the main imageLabel
 void MainWindow::DisplayRawImage_imageLabel(RawImage *ptr) {
-    QImage tmp;
-    RawToQImage(ptr, &tmp);
-    imageLabel->setPixmap(QPixmap::fromImage(tmp));
+    imageLabel->fromRaw(ptr);
     scrollArea->setVisible(true);
-    imageLabel->adjustSize();
-    imageLabel->setScaledContents(true);
     scrollArea->setWidgetResizable(true); // Fit the image to window
     //MainWindow::redGreenStackingChangeImage(&tmp);
-    stretchImage(imageLabel, 30);
-
+    //MainWindow::stretchImage(imageLabel, 30);
 }
 
 void MainWindow::DisplayRawImage_zoomedRef(RawImage *ptr) {
