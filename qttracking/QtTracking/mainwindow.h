@@ -108,6 +108,8 @@ public:
     static void RawToQImageBW(RawImage* raw, QImage* qimage);
     void DisplayRawImage_zoomed(RawImage*);
     void DisplayRawImage_zoomedRef(RawImage*);
+    void listStars(std::vector<Rectf>*, std::vector<Point2f>*, RawImage&, float);
+    void findStarInRect(std::vector<Rectf>*, std::vector<Point2f>*, RawImage &, float, QRect);
 private slots:
     void callback_openFile();
     void callback_openFile_compare();

@@ -14,7 +14,7 @@ public:
     void fromRaw(RawImage* raw);
     void drawPointer();
     QPointF pointer;
-    unsigned int window_size = 64;
+    unsigned int window_size = 128;
     QRect getSelectionRect();
     void setZoomedLabel(QLabel* label) {
         zoomedLabel = label;

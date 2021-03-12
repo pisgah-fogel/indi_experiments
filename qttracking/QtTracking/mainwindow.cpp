@@ -14,9 +14,9 @@
 #include <QPolarChart>
 #include <QValueAxis>
 
-#define PIXVAL_THRESHOLD 0.8 // number of time the average pixel value
-#define MIN_DISTANCE_BETWEEN_STARS 10
-#define MAX_STEPS 100 // Max "Size" of a star (in pixel)
+#define PIXVAL_THRESHOLD 10 // number of time the average pixel value
+#define MIN_DISTANCE_BETWEEN_STARS 5
+#define MAX_STEPS 255 // Max "Size" of a star (in pixel)
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -701,12 +701,29 @@ Rectf getStarBoundary(RawImage &rawimg, int x, int y, unsigned int thrld) {
     return result;
 }
 
-void listStars(std::vector<Rectf>* out_boxes, std::vector<Point2f>* out_centers,
+void MainWindow::listStars(std::vector<Rectf>* out_boxes, std::vector<Point2f>* out_centers,
                RawImage &grayimg, float threshold)
 {
     uint8_t thrld = (uint8_t) threshold;
     std::cout << "Star threshold is "<<(unsigned int)thrld<<std::endl;
     size_t single_pixel_star = 0;
+    for(size_t x(0); x < grayimg.width; x++) {
+        for(size_t y (0); y < grayimg.height; y++) {
+            if (grayimg.bw[y*grayimg.width + x] > thrld) {
+                if (ui->zoomedRef->pixmap() != NULL) {
+                    QImage tmp = ui->zoomedRef->pixmap()->toImage();
+                    QPainter qPainter(&tmp);
+                    QPen pen(Qt::magenta);
+                    qPainter.setBrush(Qt::NoBrush);
+                    pen.setWidth(1);
+                    qPainter.setPen(pen);
+                    qPainter.drawPoint(x,y);
+                    qPainter.end();
+                    ui->zoomedRef->setPixmap(QPixmap::fromImage(tmp));
+                }
+            }
+        }
+    }
     for(size_t x(0); x < grayimg.width; x++) {
         for(size_t y (0); y < grayimg.height; y++) {
             if (grayimg.bw[y*grayimg.width + x] > thrld) {
@@ -738,8 +755,7 @@ void listStars(std::vector<Rectf>* out_boxes, std::vector<Point2f>* out_centers,
     std::cout<<"Skipped single pixel star "<<single_pixel_star<<std::endl;
 }
 
-
-void findStarInRect(std::vector<Rectf>* out_boxes, std::vector<Point2f>* out_centers,
+void MainWindow::findStarInRect(std::vector<Rectf>* out_boxes, std::vector<Point2f>* out_centers,
                     RawImage &grayimg, float threshold, QRect box) {
     if (box.x() < 0 || box.y() <0 || box.x()+box.width()>grayimg.width || box.y()+box.height()>grayimg.height) {
         std::cout<<"Warning: findStarInRect: Box position is Invalid"<<std::endl;
@@ -928,6 +944,7 @@ void MainWindow::measureVectorBtwImagesBox() {
     std::cout<<"Average before filtering x:"<<avg_x<<" y:"<<avg_y<<std::endl;
 
     // Filtering
+    /*
     sum_x = 0, sum_y = 0;
     const float skip_threshold = 15.f;
     int skipped = 0;
@@ -960,11 +977,17 @@ void MainWindow::measureVectorBtwImagesBox() {
 
     std::cout<<FilteredFeatures.size()<<"/" << mFeatures.size() << "vectors kept after filtering"<<std::endl;
     mFeatures = FilteredFeatures;
+    */
 
     addPointToPolarChart(avg_x, avg_y);
     addValueToGraph(avg_x, avg_y);
 
-    imageLabel->moveRect(box.x()+points2.at(0).x, box.y()+points2.at(0).y);
+    qreal newx = box.x()-box.width()/2+points2.at(0).x;
+    qreal newy = box.y()-box.height()/2+points2.at(0).y;
+    std::cout<<"Old Box was x:"<<box.x()<<" y:"<<box.y()<<" w:"<<box.width()<<" h:"<<box.height()<<std::endl;
+    std::cout<<"Star position: x:"<<points2.at(0).x<<" y:"<<points2.at(0).y<<std::endl;
+    //imageLabel->moveRect(newx, newy);
+    std::cout<<"New Box is x:"<<newx<<" y:"<<newy<<std::endl;
 }
 
 void MainWindow::callback_openFile_compare() {
@@ -1009,8 +1032,8 @@ void MainWindow::callback_openFile_compare() {
 
     if (openFitRect(dialog.selectedFiles().first(), &image_b, imageLabel->getSelectionRect())) {
         //stackImageWithImage_b();
-        //measureVectorBtwImagesBox();
-        measureVectorBtwImages();
+        measureVectorBtwImagesBox();
+        //measureVectorBtwImages();
         // TODO: display small rect
         DisplayRawImage_zoomedcompare(&image_b);
         drawDebug();
