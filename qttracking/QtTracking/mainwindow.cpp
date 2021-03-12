@@ -13,6 +13,7 @@
 #include <QLineSeries>
 #include <QPolarChart>
 #include <QValueAxis>
+#include <QListWidget>
 
 #define PIXVAL_THRESHOLD 10 // number of time the average pixel value
 #define MIN_DISTANCE_BETWEEN_STARS 5
@@ -489,6 +490,7 @@ void MainWindow::scanDirectory() {
             QDateTime t = fileInfo.lastModified();
             std::cout<<" - "<<t.toString().toStdString()<<std::endl;
             old_files[img_filename] = t;
+            ui->listWidget->addItem(img_filename);
             somethingtodo = true;
             filetoprocess = img_filename;
             break; // TODO: handle many files
