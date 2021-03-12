@@ -7,6 +7,7 @@ LabelImage::LabelImage(RawImage *origin)
 {
     mOririn = origin;
     zoomedLabel = NULL;
+    pointer = QPointF((qreal)window_size, (qreal)window_size);
 }
 
 QImage LabelImage::QImageSubset(QImage* input) {
