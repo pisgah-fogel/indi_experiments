@@ -60,6 +60,13 @@ MainWindow::MainWindow(QWidget *parent)
     createGraph();
 
     createPolarChart();
+
+    connect(ui->resetimagelistbutton, SIGNAL(clicked()), this, SLOT(resetImageList()));
+}
+
+void MainWindow::resetImageList() {
+    old_files.clear();
+    ui->listWidget->clear();
 }
 
 /*

@@ -51,7 +51,7 @@
        <bool>false</bool>
       </property>
       <property name="currentIndex">
-       <number>3</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="tab">
        <property name="sizePolicy">
@@ -139,7 +139,7 @@
              </widget>
             </item>
             <item row="2" column="0">
-             <widget class="QPushButton" name="pushButton">
+             <widget class="QPushButton" name="resetimagelistbutton">
               <property name="text">
                <string>Reset &quot;ImageList&quot;</string>
               </property>

@@ -116,6 +116,7 @@ private slots:
     void callback_watch_directory();
     void drawDebug();
     void scanDirectory();
+    void resetImageList();
 private:
     void stackImageWithImage_b();
     static bool openFit(QString filename, RawImage *image, int binding);
