@@ -15,6 +15,8 @@
 #include <QValueAxis>
 #include <QListWidget>
 
+#include "serialconnection.h"
+
 #define PIXVAL_THRESHOLD 10 // number of time the average pixel value
 #define MIN_DISTANCE_BETWEEN_STARS 5
 #define MAX_STEPS 255 // Max "Size" of a star (in pixel)
@@ -25,6 +27,10 @@ MainWindow::MainWindow(QWidget *parent)
     , imageLabel(new LabelImage(&image_a))
     , scrollArea(new QScrollArea)
 {
+
+    QList<QSerialPortInfo> list = SerialConnection::getPortInfo();
+    if(list.size()>0)
+        SerialConnection::connect_test(list.at(0).portName());
 
     ui->setupUi(this);
 

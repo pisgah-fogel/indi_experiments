@@ -1,4 +1,4 @@
-QT       += core gui charts
+QT       += core gui charts serialport
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -14,11 +14,13 @@ SOURCES += \
     mainwindow.cpp \
     polarChart.cpp \
     qlabelimage.cpp \
-    redGreenStacking.cpp
+    redGreenStacking.cpp \
+    serialconnection.cpp
 
 HEADERS += \
     mainwindow.h \
-    qlabelimage.h
+    qlabelimage.h \
+    serialconnection.h
 
 FORMS += \
     mainwindow.ui
