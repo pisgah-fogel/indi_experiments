@@ -68,16 +68,10 @@ void LabelImage::fromRaw(RawImage* raw) {
     }
 
     QImage qimage = QPixmap(raw->width, raw->height).toImage();
-
-    for(size_t x(0); x < raw->width; x++) {
-        for(size_t y (0); y < raw->height; y++) {
-            qimage.setPixelColor(x, y, QColor(raw->red[y*raw->width + x], raw->green[y*raw->width + x], raw->blue[y*raw->width + x]));
-        }
-    }
+    MainWindow::RawToQImage(raw, &qimage);
     savedMap = QPixmap::fromImage(qimage);
     this->setPixmap(savedMap);
-    MainWindow::stretchImage(this, 30);
-
     this->adjustSize();
     this->setScaledContents(true);
+    MainWindow::stretchImage(this, 30);
 }

@@ -9,6 +9,15 @@
 
 #include "qlabelimage.h"
 
+#define DATATYPE uint8_t
+#define FITS_DATATYPE_KEYWORD TBYTE
+
+//#define DATATYPE uint16_t
+//#define FITS_DATATYPE_KEYWORD USHORT_IMG
+
+// Works: uint8_t / TBYTE = 11
+// Works: uint16_t / USHORT_IMG = 20
+
 class LabelImage;
 
 QT_BEGIN_NAMESPACE
@@ -87,10 +96,10 @@ public:
         }
     }
     size_t width, height;
-    uint8_t* red;
-    uint8_t* green;
-    uint8_t* blue;
-    uint8_t* bw;
+    DATATYPE* red;
+    DATATYPE* green;
+    DATATYPE* blue;
+    DATATYPE* bw;
 };
 
 class MainWindow : public QMainWindow

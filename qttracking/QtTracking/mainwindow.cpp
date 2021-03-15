@@ -27,6 +27,7 @@ MainWindow::MainWindow(QWidget *parent)
     , imageLabel(new LabelImage(&image_a))
     , scrollArea(new QScrollArea)
 {
+    std::cout<<"QPixmap default depth: "<<QPixmap::defaultDepth()<<std::endl;
 
     QList<QSerialPortInfo> list = SerialConnection::getPortInfo();
     if(list.size()>0)
@@ -121,11 +122,26 @@ void MainWindow::RawToQImage(RawImage* raw, QImage* qimage) {
         std::cout<<"Error: MainWindow::RawToQImage: Raw image is empty"<<std::endl;
         return;
     }
+    // TODO: QImage::Format_RGB16 ?
+    // TODO: QImage::Format_RGB555
+    // TODO: QImage::Format_RGB444
+    // QImage::Format_ARGB4444_Premultiplied
+    // QImage::Format_Grayscale16
     *qimage = QPixmap(raw->width, raw->height).toImage();
 
     for(size_t x(0); x < raw->width; x++) {
         for(size_t y (0); y < raw->height; y++) {
-            qimage->setPixelColor(x, y, QColor(raw->red[y*raw->width + x], raw->green[y*raw->width + x], raw->blue[y*raw->width + x]));
+            DATATYPE r = raw->red[y*raw->width + x];
+            if (r > 255)
+                r = 255;
+            DATATYPE g = (raw->green[y*raw->width + x]);
+            if (g > 255)
+                g = 255;
+            DATATYPE b = (raw->blue[y*raw->width + x]);
+            if (b > 255)
+                b = 255;
+            //qimage->setPixelColor(x, y, QColor::fromRgba64(r, g, b));
+            qimage->setPixelColor(x, y, QColor::fromRgb(r, g, b));
         }
     }
 }
@@ -139,7 +155,16 @@ void MainWindow::RawToQImageBW(RawImage* raw, QImage* qimage) {
 
     for(size_t x(0); x < raw->width; x++) {
         for(size_t y (0); y < raw->height; y++) {
-            qimage->setPixelColor(x, y, QColor(raw->bw[y*raw->width + x], raw->bw[y*raw->width + x], raw->bw[y*raw->width + x]));
+            DATATYPE r = raw->bw[y*raw->width + x];
+            /*if (r > 255)
+                r = 255;*/
+            DATATYPE g = raw->bw[y*raw->width + x];
+            /*if (g > 255)
+                g = 255;*/
+            DATATYPE b = raw->bw[y*raw->width + x];
+            /*if (b > 255)
+                b = 255;*/
+            qimage->setPixelColor(x, y, QColor(r, g, b));
         }
     }
 }
@@ -153,7 +178,16 @@ void MainWindow::RawToQImageRect(RawImage* raw, QImage* qimage, QRect rect) {
 
     for(size_t x(rect.x()), x2(0); x < size_t(rect.x()+rect.width()); x++, x2++) {
         for(size_t y (rect.y()), y2(0); y < size_t(rect.y()+rect.height()); y++, y2++) {
-            qimage->setPixelColor(x2, y2, QColor(raw->red[y*raw->width + x], raw->green[y*raw->width + x], raw->blue[y*raw->width + x]));
+            DATATYPE r = raw->red[y*raw->width + x];
+            /*if (r > 255)
+                r = 255;*/
+            DATATYPE g = raw->green[y*raw->width + x];
+            /*if (g > 255)
+                g = 255;*/
+            DATATYPE b = raw->blue[y*raw->width + x];
+            /*if (b > 255)
+                b = 255;*/
+            qimage->setPixelColor(x2, y2, QColor(r, g, b));
         }
     }
 }
@@ -172,7 +206,16 @@ bool MainWindow::RawToQImageRectBW(RawImage* raw, QImage* qimage, QRect rect) {
 
     for(size_t x(rect.x()), x2(0); x < size_t(rect.x()+rect.width()); x++, x2++) {
         for(size_t y (rect.y()), y2(0); y < size_t(rect.y()+rect.height()); y++, y2++) {
-            qimage->setPixelColor(x2, y2, QColor(raw->bw[y*raw->width + x], raw->bw[y*raw->width + x], raw->bw[y*raw->width + x]));
+            DATATYPE r = raw->bw[y*raw->width + x];
+            /*if (r > 255)
+                r = 255;*/
+            DATATYPE g = raw->bw[y*raw->width + x];
+            /*if (g > 255)
+                g = 255;*/
+            DATATYPE b = raw->bw[y*raw->width + x];
+            /*if (b > 255)
+                b = 255;*/
+            qimage->setPixelColor(x2, y2, QColor(r, g, b));
         }
     }
     return true;
@@ -210,10 +253,19 @@ bool MainWindow::openFitRect(QString filename, RawImage* rawimg, QRect rect, int
         fits_close_file(fptr, &status);
         return false;
     }
-    if (bitpix != 8) {
-        std::cout << "Warning: Only 8 bits images have been tested" << std::endl;
+    int bitpix2;
+    ret = fits_get_img_equivtype (fptr, &bitpix2, &status);
+    if (ret != 0) {
+        std::cout << "Error: could not determine the equivalent datatype" << std::endl;
         fits_close_file(fptr, &status);
         return false;
+    }
+    std::cout<<" Data type = "<<bitpix<<std::endl;
+    std::cout<<" Equivalent Data type = "<<bitpix2<<std::endl;
+    if (bitpix2 != FITS_DATATYPE_KEYWORD) {
+        std::cout << "Warning: Only 16 bits (unsigned = 20bits) images have been tested" << std::endl;
+        //fits_close_file(fptr, &status);
+        //return false;
     }
 
     int naxis;
@@ -234,19 +286,17 @@ bool MainWindow::openFitRect(QString filename, RawImage* rawimg, QRect rect, int
 
     int size_x = naxes[0], size_y = naxes[1];
 
-    if (naxes[2] != 3) {
-        std::cout<<"Error: only 3 channels images are supported, this one is "<<naxes<<std::endl;
-        fits_close_file(fptr, &status);
-        return false;
+    if (naxis != 3) {
+        std::cout<<"Warning: Your file only has "<<naxis<<" channels, will be openned as mono"<<std::endl;
     }
 
     int result_size_x = rect.width();
     int result_size_y = rect.height();
     // TODO: check required array size
     std::cout<<"Each channel takes (Crop) "<<(result_size_x)*(result_size_y)+1<<"o"<<std::endl;
-    unsigned char *rarray = (unsigned char *)malloc((result_size_x)*(result_size_y)+1); // Red channel
-    unsigned char *garray = (unsigned char *)malloc((result_size_x)*(result_size_y)+1); // Green channel
-    unsigned char *barray = (unsigned char *)malloc((result_size_x)*(result_size_y)+1); // Blue channel
+    DATATYPE *rarray = (DATATYPE *)malloc(sizeof(DATATYPE)*((result_size_x)*(result_size_y)+1)); // Red channel
+    DATATYPE *garray = (DATATYPE *)malloc(sizeof(DATATYPE)*((result_size_x)*(result_size_y)+1)); // Green channel
+    DATATYPE *barray = (DATATYPE *)malloc(sizeof(DATATYPE)*((result_size_x)*(result_size_y)+1)); // Blue channel
 
     long pixel_min_x = 1 + rect.x()*binding;
     long pixel_min_y = 1 + rect.y()*binding;
@@ -261,18 +311,21 @@ bool MainWindow::openFitRect(QString filename, RawImage* rawimg, QRect rect, int
 
     long lpixel [] = {pixel_max_x, pixel_max_y, 1, 2 /*Last dimension to be read*/};
     long inc [] = {binding, binding, 1};
-    ret = ffgsv (fptr, TBYTE, fpixel, lpixel, inc,
+    ret = ffgsv (fptr, FITS_DATATYPE_KEYWORD, fpixel, lpixel, inc,
            NULL, rarray, &anynul, &status);
 
-    fpixel[2] = 2;
-    lpixel[2] = 2;
-    ret = ffgsv (fptr, TBYTE, fpixel, lpixel, inc,
+    if (naxis == 3) {
+        fpixel[2] = 2;
+        lpixel[2] = 2;
+    }
+    ret = ffgsv (fptr, FITS_DATATYPE_KEYWORD, fpixel, lpixel, inc,
            NULL, garray, &anynul, &status);
 
-    fpixel[2] = 3;
-    lpixel[2] = 3;
-
-    ret = ffgsv (fptr, TBYTE, fpixel, lpixel, inc,
+    if (naxis == 3) {
+        fpixel[2] = 3;
+        lpixel[2] = 3;
+    }
+    ret = ffgsv (fptr, FITS_DATATYPE_KEYWORD, fpixel, lpixel, inc,
            NULL, barray, &anynul, &status);
 
     if (status)
@@ -304,7 +357,7 @@ bool MainWindow::openFitRect(QString filename, RawImage* rawimg, QRect rect, int
 
 bool MainWindow::openFit(QString filename, RawImage* rawimg, int binding=4) {
     fitsfile *fptr;
-    //char card[FLEN_CARD];
+    char card[FLEN_CARD];
     int status = 0, nkeys, ii;
 
     // Open the file
@@ -321,7 +374,7 @@ bool MainWindow::openFit(QString filename, RawImage* rawimg, int binding=4) {
     std::cout << "Open file: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count() << "ns" << std::endl;
 
     // List every meta data
-    /*
+
     begin = std::chrono::high_resolution_clock::now();
     for (ii = 1; ii <= nkeys; ii++)
     {
@@ -330,21 +383,29 @@ bool MainWindow::openFit(QString filename, RawImage* rawimg, int binding=4) {
     }
     end = std::chrono::high_resolution_clock::now();
     std::cout << "Read META: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count() << "ns" << std::endl;
-    */
+
 
     // Read every pixel, stretch resize and display
     int bitpix;
     int ret = fits_get_img_type(fptr, &bitpix, &status);
-    std::cout << "Depth : " << bitpix << "bits" << std::endl;
     if (ret != 0) {
         std::cout << "Error: could not determine depth" << std::endl;
         fits_close_file(fptr, &status);
         return false;
     }
-    if (bitpix != 8) {
-        std::cout << "Warning: Only 8 bits images have been tested" << std::endl;
+    int bitpix2;
+    ret = fits_get_img_equivtype (fptr, &bitpix2, &status);
+    if (ret != 0) {
+        std::cout << "Error: could not determine the equivalent datatype" << std::endl;
         fits_close_file(fptr, &status);
         return false;
+    }
+    std::cout<<" Data type = "<<bitpix<<std::endl;
+    std::cout<<" Equivalent Data type = "<<bitpix2<<std::endl;
+    if (bitpix2 != FITS_DATATYPE_KEYWORD) {
+        std::cout << "Warning: Only 16 bits images (unsigned = 20bits) have been tested" << std::endl;
+        //fits_close_file(fptr, &status);
+        //return false;
     }
 
     int naxis;
@@ -363,20 +424,18 @@ bool MainWindow::openFit(QString filename, RawImage* rawimg, int binding=4) {
         fits_close_file(fptr, &status);
         return false;
     }
-    std::cout << "Size: " << naxes[0] << "x" << naxes[1] << "x" << naxes[2] << std::endl;
+    std::cout << "Size: " << naxes[0] << "x" << naxes[1] << "x" << ((naxis>2)?naxes[2]:0) << std::endl;
 
     int size_x = naxes[0], size_y = naxes[1];
 
-    if (naxes[2] != 3) {
-        std::cout<<"Error: only 3 channels images are supported, this one is "<<naxes<<std::endl;
-        fits_close_file(fptr, &status);
-        return false;
+    if (naxis != 3) {
+        std::cout<<"Warning: Your file only has "<<naxis<<" channels, will be openned as mono"<<std::endl;
     }
 
     std::cout<<"Each channel takes (full image) "<<(size_x/binding)*(size_y/binding)<<"o"<<std::endl;
-    unsigned char *rarray = (unsigned char *)malloc((size_x/binding)*(size_y/binding)); // Red channel
-    unsigned char *garray = (unsigned char *)malloc((size_x/binding)*(size_y/binding)); // Green channel
-    unsigned char *barray = (unsigned char *)malloc((size_x/binding)*(size_y/binding)); // Blue channel
+    DATATYPE *rarray = (DATATYPE *)malloc(sizeof(DATATYPE)*(size_x/binding)*(size_y/binding)); // Red channel
+    DATATYPE *garray = (DATATYPE *)malloc(sizeof(DATATYPE)*(size_x/binding)*(size_y/binding)); // Green channel
+    DATATYPE *barray = (DATATYPE *)malloc(sizeof(DATATYPE)*(size_x/binding)*(size_y/binding)); // Blue channel
     long fpixel [] = {1, 1, 1, 1}; // Size: NAXIS
     // fpixel[0] goes from 1 to NAXIS1
     // fpixel[1] goes from 1 to NAXIS2
@@ -384,25 +443,29 @@ bool MainWindow::openFit(QString filename, RawImage* rawimg, int binding=4) {
 
     long lpixel [] = {size_x, size_y, 1, 2}; // TODO: Size before binding ?
     long inc [] = {binding, binding, 1, 1};
-    ret = ffgsv (fptr, TBYTE, fpixel, lpixel, inc,
+    ret = ffgsv (fptr, FITS_DATATYPE_KEYWORD, fpixel, lpixel, inc,
            NULL, rarray, &anynul, &status);
 /*
-    ret = ffgpxv(fptr, TBYTE, fpixel,
+    ret = ffgpxv(fptr, FITS_DATATYPE_KEYWORD, fpixel,
                 size_x*size_y, NULL, rarray,
                 &anynul, &status);*/
-    fpixel[2] = 2;
-    lpixel[2] = 2;
-    ret = ffgsv (fptr, TBYTE, fpixel, lpixel, inc,
+    if (naxis == 3) {
+        fpixel[2] = 2;
+        lpixel[2] = 2;
+    }
+    ret = ffgsv (fptr, FITS_DATATYPE_KEYWORD, fpixel, lpixel, inc,
            NULL, garray, &anynul, &status);
-    /*ret = ffgpxv(fptr, TBYTE, fpixel,
+    /*ret = ffgpxv(fptr, FITS_DATATYPE_KEYWORD, fpixel,
                 size_x*size_y, NULL, garray,
                 &anynul, &status);*/
-    fpixel[2] = 3;
-    lpixel[2] = 3;
-    /*ret = ffgpxv(fptr, TBYTE, fpixel,
+    if (naxis == 3) {
+        fpixel[2] = 3;
+        lpixel[2] = 3;
+    }
+    /*ret = ffgpxv(fptr, FITS_DATATYPE_KEYWORD, fpixel,
                 size_x*size_y, NULL, barray,
                 &anynul, &status);*/
-    ret = ffgsv (fptr, TBYTE, fpixel, lpixel, inc,
+    ret = ffgsv (fptr, FITS_DATATYPE_KEYWORD, fpixel, lpixel, inc,
            NULL, barray, &anynul, &status);
 
     if (status)
@@ -442,7 +505,7 @@ void MainWindow::computeBWfromRawImage(RawImage* rawimg) {
     }
 
     std::cout<<"BW channel takes "<<size_t(rawimg->width*rawimg->height+1)<<"o"<<std::endl;
-    rawimg->bw = (uint8_t*)malloc(size_t(rawimg->width*rawimg->height+1));
+    rawimg->bw = (DATATYPE*)malloc(sizeof(DATATYPE)*size_t(rawimg->width*rawimg->height+1));
 
     for(size_t x(0); x < rawimg->width; x++) {
         for(size_t y (0); y < rawimg->height; y++) {
@@ -451,7 +514,7 @@ void MainWindow::computeBWfromRawImage(RawImage* rawimg) {
                     rawimg->blue[y*rawimg->width + x];
             if (val > 255)
                 val = 255;
-            rawimg->bw[y*rawimg->width + x] = (unsigned char)val;
+            rawimg->bw[y*rawimg->width + x] = (DATATYPE)val;
         }
     }
 }
@@ -471,15 +534,16 @@ void MainWindow::stretchImage(QLabel* label, float intensity) {
         for(int y (0); y < tmp.height(); y++) {
             QColor pix = tmp.pixelColor(x, y);
             // TODO: find a better way to do it
-            int r = (int)((float)pix.red())*(intensity / red_avg);
+            uint64_t r = (uint64_t)((float)pix.red())*(intensity / red_avg);
             if (r > 255) r=255;
-            if (r < 0) r=0;
-            int g = (int)((float)pix.green())*(intensity / red_avg);
+            //if (r < 0) r=0;
+            uint64_t g = (uint64_t)((float)pix.green())*(intensity / red_avg);
             if (g > 255) g=255;
-            if (g < 0) g=0;
-            int b = (int)((float)pix.blue())*(intensity / red_avg);
+            //if (g < 0) g=0;
+            uint64_t b = (uint64_t)((float)pix.blue())*(intensity / red_avg);
             if (b > 255) b=255;
-            if (b < 0) b=0;
+            //if (b < 0) b=0;
+            //tmp.setPixelColor(x, y, QColor::fromRgba64(r, g, b));
             tmp.setPixelColor(x, y, QColor(r, g, b));
         }
     }
@@ -714,7 +778,7 @@ Rectf getStarBoundary(RawImage &rawimg, int x, int y, unsigned int thrld) {
 void MainWindow::listStars(std::vector<Rectf>* out_boxes, std::vector<Point2f>* out_centers,
                RawImage &grayimg, float threshold)
 {
-    uint8_t thrld = (uint8_t) threshold;
+    DATATYPE thrld = (DATATYPE) threshold;
     std::cout << "Star threshold is "<<(unsigned int)thrld<<std::endl;
     size_t single_pixel_star = 0;
     for(size_t x(0); x < grayimg.width; x++) {
@@ -773,7 +837,7 @@ void MainWindow::findStarInRect(std::vector<Rectf>* out_boxes, std::vector<Point
         return;
     }
 
-    uint8_t thrld = (uint8_t) threshold;
+    DATATYPE thrld = (DATATYPE) threshold;
     std::cout << "Star threshold is "<<(unsigned int)thrld<<std::endl;
     size_t single_pixel_star = 0;
     for(size_t x(box.x()); x < (size_t)(box.x()+box.width()); x++) {
@@ -1118,20 +1182,20 @@ void MainWindow::stackImageWithImage_b() {
             QColor pix = tmp.pixelColor(x, y);
             QColor pix2 = tmp2.pixelColor(x, y);
             int r = pix.red()+pix2.red();
-            if (r > 255)
+            /*if (r > 255)
                 r = 255;
             else if (r<0)
-                r = 0;
+                r = 0;*/
             int g = pix.green()+pix2.green();
-            if (g > 255)
+            /*if (g > 255)
                 g = 255;
             else if (g<0)
-                g = 0;
+                g = 0;*/
             int b = pix.blue()+pix2.blue();
-            if (b > 255)
+            /*if (b > 255)
                 b = 255;
             else if (b<0)
-                b = 0;
+                b = 0;*/
             // TODO: avoid overflow
             tmp.setPixelColor(x, y, QColor(r, g, b));
         }
